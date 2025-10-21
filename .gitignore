@@ -1,0 +1,25 @@
+# Ignore large installer files
+AWSCLIV2.pkg
+
+# Ignore ZIP packages (we'll push source files instead)
+*.zip
+
+# Ignore Docker and AWS-specific files not needed for App Runner
+Dockerfile
+task-definition.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment files
+.env
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS files
+.DS_Store

@@ -1,6 +1,6 @@
 # Housing Dashboard
 
-Interactive housing trajectory visualization dashboard built with Dash and Plotly.
+Interactive housing trajectory visualisation dashboard built with Dash and Plotly.
 
 ## Features
 - Dual animated choropleth maps comparing Savills trajectory data and Core Largesites baseline
@@ -25,4 +25,4 @@ python app.py
 Visit `http://localhost:8080` to view the dashboard locally.
 
 ## Live Dashboard
-🚀 **Live URL**: Will be available after App Runner deployment
+**Live URL**: Will be available after App Runner deployment

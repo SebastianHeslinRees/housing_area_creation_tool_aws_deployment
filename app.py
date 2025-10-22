@@ -70,7 +70,7 @@ def create_dual_animated_map():
         ward_min, ward_max = 0, max(ward_values) if len(ward_values) > 0 else 100
         sites_min, sites_max = 0, max(sites_values) if len(sites_values) > 0 else 100
         
-        # Savills data with blue to orange colorscale and separate legend
+        # Savills data with blue to orange colour scale and separate legend
         frame_data.append(
             go.Choroplethmapbox(
                 geojson=ward_clean.__geo_interface__,
@@ -99,7 +99,7 @@ def create_dual_animated_map():
             )
         )
         
-        # Core Sites data with blue to orange colorscale and separate legend
+        # Core Sites data with blue to orange colour scale and separate legend
         frame_data.append(
             go.Choroplethmapbox(
                 geojson=sites_clean.__geo_interface__,
@@ -271,7 +271,7 @@ fig_line_graphs = create_interactive_line_graphs()
 # ---------------- Dash App Layout ----------------
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE])
 
-# Colors
+# Colours
 primary_color = "#0074D9"  # Blue
 secondary_color = "#FF851B"  # Orange
 bg_color = "#F5F7FA"
@@ -373,7 +373,7 @@ app.layout = dbc.Container([
         ]
     ),
     
-    html.Footer("Data Visualization Dashboard - Blue & Orange Theme", style={'textAlign': 'center', 'color': secondary_color, 'marginTop': 50, 'fontWeight': 'bold', 'fontSize': '16px'})
+    html.Footer("Data Visualisation Dashboard - Blue & Orange Theme", style={'textAlign': 'center', 'color': secondary_color, 'marginTop': 50, 'fontWeight': 'bold', 'fontSize': '16px'})
     
 ], fluid=True, style={'backgroundColor': bg_color, 'padding': '20px'})
 

@@ -1,6 +1,6 @@
 
 import dash
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 import numpy as np
@@ -8,6 +8,16 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import geopandas as gpd
 from shapely import wkt
+
+# Colours Palette 
+primary_color = "#1E3A5F"      # Deep Professional Blue
+secondary_color = "#E67E22"    # Sophisticated Orange  
+accent_color = "#2980B9"       # Bright Professional Blue
+light_blue = "#EBF3FD"         # Very Light Blue
+orange_light = "#FDF2E9"       # Very Light Orange
+bg_color = "#F8FAFE"           # Ultra Light Blue Background
+text_dark = "#2C3E50"          # Professional Dark Text
+text_light = "#7F8C8D"         # Professional Light Text
 
 def _safe_load_wkt(val):
     if pd.isna(val):
@@ -70,13 +80,13 @@ def create_dual_animated_map():
         ward_min, ward_max = 0, max(ward_values) if len(ward_values) > 0 else 100
         sites_min, sites_max = 0, max(sites_values) if len(sites_values) > 0 else 100
         
-        # Savills data with blue to orange colour scale and separate legend
+        # Savills data with bright blue to orange colour scale and separate legend
         frame_data.append(
             go.Choroplethmapbox(
                 geojson=ward_clean.__geo_interface__,
                 locations=ward_clean.index,
                 z=ward_clean[str(year)],
-                colorscale=[[0, '#000080'], [1, '#FF4500']],  # Dark blue to dark orange
+                colorscale=[[0, accent_color], [1, secondary_color]],  # Bright blue to orange
                 zmin=ward_min,
                 zmax=ward_max,
                 text=ward_clean['wd22nm'],
@@ -96,13 +106,13 @@ def create_dual_animated_map():
             )
         )
         
-        # Core Sites data with blue to orange colour scale and separate legend
+        # Core Sites data with bright blue to orange colour scale and separate legend
         frame_data.append(
             go.Choroplethmapbox(
                 geojson=sites_clean.__geo_interface__,
                 locations=sites_clean.index,
                 z=sites_clean[str(year)],
-                colorscale=[[0, '#000080'], [1, '#FF4500']],  # Dark blue to dark orange
+                colorscale=[[0, accent_color], [1, secondary_color]],  # Bright blue to orange
                 zmin=sites_min,
                 zmax=sites_max,
                 text=sites_clean['wd22nm'],
@@ -124,10 +134,22 @@ def create_dual_animated_map():
         
         frames.append(go.Frame(data=frame_data, name=str(year)))
     
-    # Initial traces
+    # Initial traces - start at 2027 if available, otherwise first year
     if frames:
-        fig.add_trace(frames[0].data[0], row=1, col=1)
-        fig.add_trace(frames[0].data[1], row=1, col=2)
+        # Find the index for year 2027
+        start_index = 0
+        for i, year in enumerate(common_years):
+            if year == 2027:
+                start_index = i
+                break
+        
+        # Make sure we don't go out of bounds
+        if start_index < len(frames):
+            fig.add_trace(frames[start_index].data[0], row=1, col=1)
+            fig.add_trace(frames[start_index].data[1], row=1, col=2)
+        else:
+            fig.add_trace(frames[0].data[0], row=1, col=1)
+            fig.add_trace(frames[0].data[1], row=1, col=2)
     
     fig.update_layout(
         title='Housing Units Added',
@@ -136,6 +158,7 @@ def create_dual_animated_map():
         height=600,
         width=1200,
         showlegend=False,
+        margin=dict(l=10, r=10, t=50, b=10),
         updatemenus=[{
             'type': 'buttons',
             'showactive': False,
@@ -165,7 +188,7 @@ def create_dual_animated_map():
             ]
         }],
         sliders=[{
-            'active': 0,
+            'active': common_years.index(2027) if 2027 in common_years else 0,
             'yanchor': 'top',
             'xanchor': 'left',
             'currentvalue': {
@@ -229,8 +252,8 @@ def create_interactive_line_graphs():
         savills_values = [ward_savills_data[str(year)].iloc[0] if str(year) in ward_savills_data.columns else 0 for year in common_years] if not ward_savills_data.empty else [0]*len(common_years)
         sites_values = [ward_sites_data[str(year)].iloc[0] if str(year) in ward_sites_data.columns else 0 for year in common_years] if not ward_sites_data.empty else [0]*len(common_years)
         
-        trace_savills = go.Scatter(x=common_years, y=savills_values, mode='lines+markers', name=f'{ward_name} (Savills)', visible=(i==0), line=dict(color='#0074D9', width=2), marker=dict(size=6))
-        trace_sites = go.Scatter(x=common_years, y=sites_values, mode='lines+markers', name=f'{ward_name} (Sites)', visible=(i==0), line=dict(color='#FF851B', width=2), marker=dict(size=6))
+        trace_savills = go.Scatter(x=common_years, y=savills_values, mode='lines+markers', name=f'{ward_name} (Savills)', visible=(i==0), line=dict(color=accent_color, width=2), marker=dict(size=6))
+        trace_sites = go.Scatter(x=common_years, y=sites_values, mode='lines+markers', name=f'{ward_name} (Sites)', visible=(i==0), line=dict(color=secondary_color, width=2), marker=dict(size=6))
         
         fig.add_trace(trace_savills, row=1, col=1)
         fig.add_trace(trace_sites, row=1, col=2)
@@ -248,7 +271,57 @@ def create_interactive_line_graphs():
         height=600,
         width=1200,
         showlegend=True,
-        updatemenus=[dict(buttons=dropdown_buttons, direction="down", showactive=True, x=0.5, xanchor="center", y=1.15, yanchor="top")]
+        margin=dict(l=40, r=40, t=80, b=40)
+    )
+    
+    fig.update_xaxes(title_text="Year", row=1, col=1)
+    fig.update_xaxes(title_text="Year", row=1, col=2)
+    fig.update_yaxes(title_text="Housing Units", row=1, col=1)
+    fig.update_yaxes(title_text="Housing Units", row=1, col=2)
+    
+    return fig, ward_names
+
+# --------- Function to create line graph for specific ward ---------
+def create_line_graph_for_ward(selected_ward):
+    merged_ward_savills_gdf_line = merged_ward_savills_gdf.drop(columns=['2021'], errors='ignore')
+    merged_Core_Largesites_gdf_line = merged_Core_Largesites_gdf.drop(columns=['2021'], errors='ignore')
+    
+    ward_numeric = merged_ward_savills_gdf_line.select_dtypes(include=[np.number]).columns.tolist()
+    sites_numeric = merged_Core_Largesites_gdf_line.select_dtypes(include=[np.number]).columns.tolist()
+    
+    ward_years = [col for col in ward_numeric if str(col).isdigit() and len(str(col)) == 4]
+    sites_years = [col for col in sites_numeric if str(col).isdigit() and len(str(col)) == 4]
+    common_years = sorted(set(ward_years) & set(sites_years))
+    
+    if not common_years:
+        return go.Figure()
+    
+    # Convert to integers for proper sorting
+    common_years = sorted([int(year) for year in common_years])
+    
+    fig = make_subplots(rows=1, cols=2, subplot_titles=('Savills Trajectory', 'Core Largesites Baseline'))
+    
+    # Get data for selected ward
+    ward_savills_data = merged_ward_savills_gdf[merged_ward_savills_gdf['wd22nm'] == selected_ward]
+    ward_sites_data = merged_Core_Largesites_gdf[merged_Core_Largesites_gdf['wd22nm'] == selected_ward]
+    
+    if not ward_savills_data.empty and not ward_sites_data.empty:
+        savills_values = [ward_savills_data[str(year)].iloc[0] if str(year) in ward_savills_data.columns else 0 for year in common_years]
+        sites_values = [ward_sites_data[str(year)].iloc[0] if str(year) in ward_sites_data.columns else 0 for year in common_years]
+        
+        # Add traces for the selected ward
+        trace_savills = go.Scatter(x=common_years, y=savills_values, mode='lines+markers', name=f'{selected_ward} (Savills)', line=dict(color=accent_color, width=3), marker=dict(size=8))
+        trace_sites = go.Scatter(x=common_years, y=sites_values, mode='lines+markers', name=f'{selected_ward} (Sites)', line=dict(color=secondary_color, width=3), marker=dict(size=8))
+        
+        fig.add_trace(trace_savills, row=1, col=1)
+        fig.add_trace(trace_sites, row=1, col=2)
+    
+    fig.update_layout(
+        title=f'Housing Trajectories - {selected_ward}',
+        height=600,
+        width=1200,
+        showlegend=True,
+        margin=dict(l=40, r=40, t=80, b=40)
     )
     
     fig.update_xaxes(title_text="Year", row=1, col=1)
@@ -260,7 +333,7 @@ def create_interactive_line_graphs():
 
 # ---------------- Initialize Figures ----------------
 fig_dual_animated, common_years = create_dual_animated_map()
-fig_line_graphs = create_interactive_line_graphs()
+fig_line_graphs, ward_names = create_interactive_line_graphs()
 
 # ---------------- Dash App Layout ----------------
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE])
@@ -273,9 +346,21 @@ app.index_string = '''
         {%metas%}
         <title>{%title%}</title>
         <link rel="icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png" type="image/png">
-        {%favicon%}
         {%css%}
         <style>
+            /* Hide ALL default Dash loading indicators */
+            ._dash-loading, .dash-spinner, .dash-loading, .loading {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+            }
+            
+            /* Hide any loading with data attributes */
+            [data-dash-is-loading="true"] {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            
             /* Loading spinner overlay */
             .loading-overlay {
                 position: fixed;
@@ -283,7 +368,7 @@ app.index_string = '''
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: linear-gradient(135deg, #0074D9 0%, #FF851B 100%);
+                background: linear-gradient(135deg, #1E3A5F 0%, #E67E22 100%);
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
@@ -365,7 +450,29 @@ app.index_string = '''
         </footer>
         
         <script>
-            // Hide loading overlay when page is fully loaded
+            // Hide all default Dash loading indicators immediately
+            function hideDefaultDashLoading() {
+                // Hide all Dash loading spinners
+                const loadingSpinners = document.querySelectorAll('._dash-loading, .dash-spinner, [data-dash-is-loading="true"]');
+                loadingSpinners.forEach(spinner => {
+                    spinner.style.display = 'none !important';
+                    spinner.style.visibility = 'hidden !important';
+                });
+                
+                // Hide any loading overlays that might appear
+                const loadingOverlays = document.querySelectorAll('.loading, .spinner, .dash-loading');
+                loadingOverlays.forEach(overlay => {
+                    if (overlay.id !== 'loading-overlay') { // Don't hide our custom overlay
+                        overlay.style.display = 'none !important';
+                    }
+                });
+            }
+            
+            // Run immediately and repeatedly to catch any loading indicators
+            hideDefaultDashLoading();
+            setInterval(hideDefaultDashLoading, 100);
+            
+            // Hide our custom loading overlay when page is fully loaded
             window.addEventListener('load', function() {
                 setTimeout(function() {
                     const overlay = document.getElementById('loading-overlay');
@@ -375,13 +482,18 @@ app.index_string = '''
                             overlay.style.display = 'none';
                         }, 500);
                     }
-                }, 1000); // Show spinner for at least 1 second
+                }, 1500); // Show spinner for at least 1.5 seconds
             });
             
             // Also hide when Dash is ready
             document.addEventListener('DOMContentLoaded', function() {
+                // Continue hiding default loading indicators
+                hideDefaultDashLoading();
+                
                 // Wait for Dash to render main content
                 const checkDashReady = setInterval(function() {
+                    hideDefaultDashLoading(); // Keep hiding default loaders
+                    
                     const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
                     if (dashContainer) {
                         clearInterval(checkDashReady);
@@ -393,19 +505,14 @@ app.index_string = '''
                                     overlay.style.display = 'none';
                                 }, 500);
                             }
-                        }, 500);
+                        }, 800);
                     }
-                }, 100);
+                }, 50);
             });
         </script>
     </body>
 </html>
 '''
-
-# Colours
-primary_color = "#0074D9"  # Blue
-secondary_color = "#FF851B"  # Orange
-bg_color = "#F5F7FA"
 
 # Ensure we have valid numeric years for the slider
 if not common_years:
@@ -422,40 +529,75 @@ app.layout = dbc.Container([
         html.Hr(style={'borderColor': secondary_color, 'height': '3px'})
     ]),
     
-    # Metric Cards with dynamic year data and professional loading indicators
+    # Info Box with expandable information
+    html.Div([
+        dbc.Button(
+            [
+                html.I(className="fas fa-info-circle", style={'marginRight': '8px', 'fontSize': '16px'}),
+                "Dashboard Information"
+            ],
+            id="info-toggle",
+            color="info",
+            outline=True,
+            size="sm",
+            style={'marginBottom': '10px', 'borderRadius': '20px'}
+        ),
+        dbc.Collapse(
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5(" About This Dashboard", style={'color': primary_color, 'marginBottom': '15px'}),
+                    html.P([
+                        "This interactive dashboard compares housing trajectory data from:"
+                    ], style={'marginBottom': '10px'}),
+                    html.Ul([
+                        html.Li([
+                            html.Strong("Savills Trajectory "), 
+                        ], style={'marginBottom': '8px'}),
+                        html.Li([
+                            html.Strong("Core Largesites Baseline "), 
+                        ], style={'marginBottom': '8px'}),
+                    ]),
+                    html.Hr(style={'margin': '15px 0'}),
+                    html.H6("Interactive Features:", style={'color': secondary_color, 'marginBottom': '10px'}),
+                    html.Ul([
+                        html.Li("• Use the year slider to see data for different years", style={'marginBottom': '5px'}),
+                        html.Li("• Click play on the map to see animated changes over time", style={'marginBottom': '5px'}),
+                        html.Li("• Search for specific boroughs in the line graph dropdown", style={'marginBottom': '5px'}),
+                        html.Li("• Compare trends between the two data sources", style={'marginBottom': '5px'}),
+                    ]),
+                    html.Hr(style={'margin': '15px 0'}),
+                    html.P([
+                        html.I(className="fas fa-building", style={'marginRight': '5px', 'color': primary_color}),
+                        html.Small("Data visualisation by the Greater London Authority Housing Team", 
+                                 style={'color': text_light, 'fontStyle': 'italic'})
+                    ], style={'marginBottom': '0', 'textAlign': 'center'})
+                ])
+            ], style={'border': f'1px solid {primary_color}', 'borderRadius': '10px'}),
+            id="info-collapse",
+            is_open=False
+        )
+    ], style={'marginBottom': '20px', 'textAlign': 'center'}),
+    
+    # Metric Cards with dynamic year data
     dbc.Row([
         dbc.Col(
-            dcc.Loading(
-                id="loading-savills-card",
-                type="dot",
-                color=primary_color,
-                children=[
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.H4("Total Number of Houses Added", className="card-title", style={'color': primary_color}),
-                            html.H5(id="year-display-savills", style={'color': '#666', 'fontSize': '14px'}),
-                            html.H2(id="savills-total", className="card-text")
-                        ])
-                    ], style={'borderLeft': f'5px solid {secondary_color}', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'})
-                ]
-            )
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("Number of Houses Added", className="card-title", style={'color': primary_color}),
+                    html.H5(id="year-display-savills", style={'color': '#666', 'fontSize': '14px'}),
+                    html.H2(id="savills-total", className="card-text")
+                ])
+            ], style={'borderLeft': f'5px solid {secondary_color}', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'})
         ),
         
         dbc.Col(
-            dcc.Loading(
-                id="loading-sites-card",
-                type="dot",
-                color=secondary_color,
-                children=[
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.H4("Total Number of Houses Added", className="card-title", style={'color': secondary_color}),
-                            html.H5(id="year-display-sites", style={'color': '#666', 'fontSize': '14px'}),
-                            html.H2(id="sites-total", className="card-text")
-                        ])
-                    ], style={'borderLeft': f'5px solid {primary_color}', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'})
-                ]
-            )
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("Number of Houses Added", className="card-title", style={'color': secondary_color}),
+                    html.H5(id="year-display-sites", style={'color': '#666', 'fontSize': '14px'}),
+                    html.H2(id="sites-total", className="card-text")
+                ])
+            ], style={'borderLeft': f'5px solid {primary_color}', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'})
         ),
     ], className="mb-4"),
     
@@ -464,7 +606,7 @@ app.layout = dbc.Container([
         html.H4("Select Year", style={'color': primary_color, 'marginBottom': 10}),
         dcc.Slider(
             id='year-slider',
-            min=min_year,
+            min=2021,
             max=max_year,
             value=2027,
             marks={year: str(year) for year in common_years[::2]} if common_years else {},
@@ -474,47 +616,49 @@ app.layout = dbc.Container([
         )
     ], style={'marginBottom': 30, 'padding': '20px', 'backgroundColor': 'white', 'borderRadius': '10px', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'}),
     
-    # Animated Map with Professional Loading Spinner
-    html.H3("Animated Comparison Map", style={'color': primary_color, 'fontWeight': 'bold', 'textAlign': 'center', 'marginTop': 20}),
-    dcc.Loading(
-        id="loading-animated-map",
-        type="cube",
-        color=primary_color,
-        style={'minHeight': '650px'},
-        children=[
-            dcc.Graph(
-                id='animated-map', 
-                figure=fig_dual_animated if fig_dual_animated else go.Figure(), 
-                style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)'}
-            )
-        ]
+    # Animated Comparison Map
+    html.H3("Comparison Maps", style={'color': primary_color, 'fontWeight': 'bold', 'textAlign': 'center', 'marginTop': 20}),
+    dcc.Graph(
+        id='animated-map', 
+        figure=fig_dual_animated if fig_dual_animated else go.Figure(), 
+        style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)', 'overflow': 'hidden'},
+        config={'displayModeBar': False}
     ),
     
-    # Line Graphs with Professional Loading Spinner
+    # Interactive Line Graphs by Ward
     html.H3("Interactive Line Graphs by Ward", style={'color': primary_color, 'fontWeight': 'bold', 'textAlign': 'center', 'marginTop': 30}),
-    dcc.Loading(
-        id="loading-line-graphs",
-        type="circle",
-        color=secondary_color,
-        style={'minHeight': '650px'},
-        children=[
-            dcc.Graph(
-                figure=fig_line_graphs if fig_line_graphs else go.Figure(), 
-                style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)'}
-            )
-        ]
+    
+    # Searchable Borough Dropdown
+    html.Div([
+        html.H4("Select Borough/Ward", style={'color': primary_color, 'marginBottom': 10}),
+        dcc.Dropdown(
+            id='ward-dropdown',
+            options=[{'label': ward, 'value': ward} for ward in sorted(ward_names)] if ward_names else [],
+            value=sorted(ward_names)[0] if ward_names else None,
+            placeholder="Search and select a borough/ward...",
+            searchable=True,
+            clearable=False,
+            style={'fontSize': '16px'}
+        )
+    ], style={'marginBottom': 20, 'padding': '20px', 'backgroundColor': 'white', 'borderRadius': '10px', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'}),
+    
+    dcc.Graph(
+        id='line-graphs',
+        figure=fig_line_graphs if fig_line_graphs else go.Figure(), 
+        style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)', 'overflow': 'hidden'},
+        config={'displayModeBar': False}
     ),
     
     html.Div([
         html.P("This is an automated report produced by the Greater London Authority (GLA)", 
-               style={'margin': '10px 0', 'fontSize': '14px', 'color': '#666'}),
+               style={'margin': '10px 0', 'fontSize': '14px', 'color': text_light}),
         html.P([
             "If you require further information, please email ",
             html.A("Sebastian.Heslin-Rees@london.gov.uk", 
                    href="mailto:Sebastian.Heslin-Rees@london.gov.uk",
                    style={'color': primary_color, 'textDecoration': 'underline'})
-        ], style={'margin': '10px 0', 'fontSize': '14px', 'color': '#666'})
-    ], className="footer", style={'textAlign': 'center', 'marginTop': 50, 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderTop': f'2px solid {secondary_color}', 'borderRadius': '5px'})
+        ], style={'margin': '10px 0', 'fontSize': '14px', 'color': text_light})
+    ], className="footer", style={'textAlign': 'center', 'marginTop': 50, 'padding': '20px', 'backgroundColor': light_blue, 'borderTop': f'2px solid {secondary_color}', 'borderRadius': '5px'})
     
 ], fluid=True, style={'backgroundColor': bg_color, 'padding': '20px'})
 
@@ -543,8 +687,31 @@ def update_metrics(selected_year):
     
     return f"{int(savills_total):,}", f"{int(sites_total):,}", year_display, year_display
 
+# Callback to update line graph based on selected ward
+@app.callback(
+    Output('line-graphs', 'figure'),
+    [Input('ward-dropdown', 'value')]
+)
+def update_line_graph(selected_ward):
+    if selected_ward:
+        return create_line_graph_for_ward(selected_ward)
+    else:
+        return go.Figure()
+
+# Callback to toggle info box
+@app.callback(
+    Output("info-collapse", "is_open"),
+    [Input("info-toggle", "n_clicks")],
+    [State("info-collapse", "is_open")],
+)
+def toggle_info_box(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
 # For gunicorn - FIXED: Only one if __name__ == "__main__": block
 server = app.server
 
 if __name__ == "__main__":
-    app.run_server(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="127.0.0.1", port=8050, debug=True)
+

@@ -10,14 +10,14 @@ import geopandas as gpd
 from shapely import wkt
 
 # Colours Palette 
-primary_color = "#1E3A5F"      # Deep Professional Blue
-secondary_color = "#E67E22"    # Sophisticated Orange  
-accent_color = "#2980B9"       # Bright Professional Blue
-light_blue = "#EBF3FD"         # Very Light Blue
-orange_light = "#FDF2E9"       # Very Light Orange
-bg_color = "#F8FAFE"           # Ultra Light Blue Background
-text_dark = "#2C3E50"          # Professional Dark Text
-text_light = "#7F8C8D"         # Professional Light Text
+primary_color = "#1E59A6"      
+secondary_color = "#E67E22"    
+accent_color = "#2980B9"       
+light_blue = "#EBF3FD"         
+orange_light = "#FDF2E9"      
+bg_color = "#F8FAFE"           
+text_dark = "#1F4D7C"          
+text_light = "#7F8C8D"        
 
 def _safe_load_wkt(val):
     if pd.isna(val):
@@ -155,10 +155,10 @@ def create_dual_animated_map():
         title='Housing Units Added',
         mapbox1=dict(style='carto-positron', center={'lat': 51.5074, 'lon': -0.1278}, zoom=8),
         mapbox2=dict(style='carto-positron', center={'lat': 51.5074, 'lon': -0.1278}, zoom=8),
-        height=600,
+        height=580,  # Reduced to fit better in container
         width=1200,
         showlegend=False,
-        margin=dict(l=10, r=10, t=50, b=10),
+        margin=dict(l=5, r=5, t=40, b=5),  # Tighter margins to fit container
         updatemenus=[{
             'type': 'buttons',
             'showactive': False,
@@ -268,10 +268,10 @@ def create_interactive_line_graphs():
     
     fig.update_layout(
         title='Housing Trajectories by Ward',
-        height=600,
+        height=580,  # Reduced to fit better in container
         width=1200,
         showlegend=True,
-        margin=dict(l=40, r=40, t=80, b=40)
+        margin=dict(l=30, r=30, t=60, b=30)  # Tighter margins to fit container
     )
     
     fig.update_xaxes(title_text="Year", row=1, col=1)
@@ -318,10 +318,10 @@ def create_line_graph_for_ward(selected_ward):
     
     fig.update_layout(
         title=f'Housing Trajectories - {selected_ward}',
-        height=600,
+        height=580,  # Reduced to fit better in container
         width=1200,
         showlegend=True,
-        margin=dict(l=40, r=40, t=80, b=40)
+        margin=dict(l=30, r=30, t=60, b=30)  # Tighter margins to fit container
     )
     
     fig.update_xaxes(title_text="Year", row=1, col=1)
@@ -598,21 +598,19 @@ app.layout = dbc.Container([
                         "This interactive dashboard compares housing trajectory data from:"
                     ], style={'marginBottom': '10px'}),
                     html.Ul([
-                        html.Li([
+                        html.P([
                             html.Strong("Savills Trajectory "), 
                         ], style={'marginBottom': '8px'}),
-                        html.Li([
+                        html.P([
                             html.Strong("Core Largesites Baseline "), 
                         ], style={'marginBottom': '8px'}),
                     ]),
                     html.Hr(style={'margin': '15px 0'}),
                     html.H6("Interactive Features:", style={'color': secondary_color, 'marginBottom': '10px'}),
-                    html.Ul([
-                        html.Li("• Use the year slider to see data for different years", style={'marginBottom': '5px'}),
-                        html.Li("• Click play on the map to see animated changes over time", style={'marginBottom': '5px'}),
-                        html.Li("• Search for specific boroughs in the line graph dropdown", style={'marginBottom': '5px'}),
-                        html.Li("• Compare trends between the two data sources", style={'marginBottom': '5px'}),
-                    ]),
+                    html.P("• Use the year slider to see data for different years", style={'marginBottom': '5px'}),
+                    html.P("• Click play on the map to see animated changes over time", style={'marginBottom': '5px'}),
+                    html.P("• Search for specific boroughs in the line graph dropdown", style={'marginBottom': '5px'}),
+                    html.P("• Compare trends between the two data sources", style={'marginBottom': '5px'}),
                     html.Hr(style={'margin': '15px 0'}),
                     html.P([
                         html.I(className="fas fa-building", style={'marginRight': '5px', 'color': primary_color}),
@@ -654,10 +652,10 @@ app.layout = dbc.Container([
         html.H4("Select Year", style={'color': primary_color, 'marginBottom': 10}),
         dcc.Slider(
             id='year-slider',
-            min=2021,
+            min=2022,
             max=max_year,
             value=2027,
-            marks={year: str(year) for year in common_years[::2]} if common_years else {},
+            marks={year: str(year) for year in common_years[::2] if year >= 2022} if common_years else {},
             step=1,
             tooltip={"placement": "bottom", "always_visible": True},
             included=False

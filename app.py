@@ -474,61 +474,77 @@ app.index_string = '''
             
             // Function to check if all Dash components are ready
             function isDashFullyReady() {
-                // Check if main container is loaded
-                const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
-                if (!dashContainer) return false;
-                
-                // Check if graphs are loaded (they should have plot containers)
-                const graphs = document.querySelectorAll('.js-plotly-plot');
-                if (graphs.length === 0) return false;
-                
-                // Check if all graphs have actual content
-                let allGraphsReady = true;
-                graphs.forEach(graph => {
-                    const plotDiv = graph.querySelector('.plotly');
-                    if (!plotDiv || !graph._fullLayout) {
-                        allGraphsReady = false;
-                    }
-                });
-                
-                // Check if dropdown has options
-                const dropdown = document.querySelector('#ward-dropdown .Select-control');
-                const hasDropdownOptions = dropdown && dropdown.textContent.trim() !== '';
-                
-                return allGraphsReady && hasDropdownOptions;
+                try {
+                    // Check if main container is loaded
+                    const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
+                    if (!dashContainer) return false;
+                    
+                    // More lenient check - look for any visible content
+                    const hasVisibleContent = document.querySelector('#main-content') && 
+                                            document.querySelector('#main-content').children.length > 0;
+                    if (!hasVisibleContent) return false;
+                    
+                    // Check if graphs exist (don't require full layout in cloud env)
+                    const graphs = document.querySelectorAll('.js-plotly-plot, [id*="map"], [id*="graph"]');
+                    if (graphs.length < 2) return false; // Should have at least 2 maps
+                    
+                    // Check if dropdown exists and has some structure
+                    const dropdown = document.querySelector('#ward-dropdown');
+                    if (!dropdown) return false;
+                    
+                    // More flexible content check - any of these indicate readiness
+                    const hasAnyPlots = document.querySelectorAll('.plotly, .js-plotly-plot').length > 0;
+                    const hasMapContent = document.querySelector('[id*="map-container"]');
+                    const hasDropdownStructure = document.querySelector('.Select-control, .dash-dropdown');
+                    
+                    return hasAnyPlots || hasMapContent || hasDropdownStructure;
+                } catch (e) {
+                    console.log('Error checking dash readiness:', e);
+                    return false;
+                }
             }
             
             // Main function to hide loading overlay when everything is ready
             function hideLoadingWhenReady() {
+                let checkCount = 0;
+                const maxChecks = 200; // 20 seconds max (100ms * 200)
+                
                 const checkInterval = setInterval(function() {
+                    checkCount++;
                     hideDefaultDashLoading(); // Keep hiding default loaders
                     
-                    if (isDashFullyReady()) {
+                    // For cloud deployment, be more patient and use multiple strategies
+                    const isReady = isDashFullyReady();
+                    const hasMinimumTime = checkCount > 30; // At least 3 seconds
+                    const hasContent = document.querySelectorAll('.js-plotly-plot, [id*="map"], .plotly').length > 0;
+                    
+                    // On cloud, wait longer and be more flexible about "ready" state
+                    if ((isReady && hasMinimumTime) || (hasContent && checkCount > 80)) {
                         clearInterval(checkInterval);
-                        // Wait a bit longer to ensure everything is stable
+                        // Longer buffer for cloud environment
                         setTimeout(function() {
                             const overlay = document.getElementById('loading-overlay');
                             if (overlay) {
                                 overlay.style.opacity = '0';
                                 setTimeout(function() {
                                     overlay.style.display = 'none';
-                                }, 500);
+                                }, 800); // Slower fade for cloud
                             }
-                        }, 1000); // Extra buffer to ensure stability
+                        }, 2000); // Longer wait for cloud stability
+                    }
+                    
+                    // Safety fallback
+                    if (checkCount >= maxChecks) {
+                        clearInterval(checkInterval);
+                        const overlay = document.getElementById('loading-overlay');
+                        if (overlay && overlay.style.display !== 'none') {
+                            overlay.style.opacity = '0';
+                            setTimeout(function() {
+                                overlay.style.display = 'none';
+                            }, 800);
+                        }
                     }
                 }, 100);
-                
-                // Safety fallback - hide after maximum time
-                setTimeout(function() {
-                    clearInterval(checkInterval);
-                    const overlay = document.getElementById('loading-overlay');
-                    if (overlay && overlay.style.display !== 'none') {
-                        overlay.style.opacity = '0';
-                        setTimeout(function() {
-                            overlay.style.display = 'none';
-                        }, 500);
-                    }
-                }, 10000); // Max 10 seconds fallback
             }
             
             // Start checking when DOM is ready

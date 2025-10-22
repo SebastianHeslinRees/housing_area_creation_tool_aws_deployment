@@ -472,42 +472,74 @@ app.index_string = '''
             hideDefaultDashLoading();
             setInterval(hideDefaultDashLoading, 100);
             
-            // Hide our custom loading overlay when page is fully loaded
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    const overlay = document.getElementById('loading-overlay');
-                    if (overlay) {
-                        overlay.style.opacity = '0';
-                        setTimeout(function() {
-                            overlay.style.display = 'none';
-                        }, 500);
-                    }
-                }, 1500); // Show spinner for at least 1.5 seconds
-            });
-            
-            // Also hide when Dash is ready
-            document.addEventListener('DOMContentLoaded', function() {
-                // Continue hiding default loading indicators
-                hideDefaultDashLoading();
+            // Function to check if all Dash components are ready
+            function isDashFullyReady() {
+                // Check if main container is loaded
+                const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
+                if (!dashContainer) return false;
                 
-                // Wait for Dash to render main content
-                const checkDashReady = setInterval(function() {
+                // Check if graphs are loaded (they should have plot containers)
+                const graphs = document.querySelectorAll('.js-plotly-plot');
+                if (graphs.length === 0) return false;
+                
+                // Check if all graphs have actual content
+                let allGraphsReady = true;
+                graphs.forEach(graph => {
+                    const plotDiv = graph.querySelector('.plotly');
+                    if (!plotDiv || !graph._fullLayout) {
+                        allGraphsReady = false;
+                    }
+                });
+                
+                // Check if dropdown has options
+                const dropdown = document.querySelector('#ward-dropdown .Select-control');
+                const hasDropdownOptions = dropdown && dropdown.textContent.trim() !== '';
+                
+                return allGraphsReady && hasDropdownOptions;
+            }
+            
+            // Main function to hide loading overlay when everything is ready
+            function hideLoadingWhenReady() {
+                const checkInterval = setInterval(function() {
                     hideDefaultDashLoading(); // Keep hiding default loaders
                     
-                    const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
-                    if (dashContainer) {
-                        clearInterval(checkDashReady);
+                    if (isDashFullyReady()) {
+                        clearInterval(checkInterval);
+                        // Wait a bit longer to ensure everything is stable
                         setTimeout(function() {
                             const overlay = document.getElementById('loading-overlay');
-                            if (overlay && overlay.style.display !== 'none') {
+                            if (overlay) {
                                 overlay.style.opacity = '0';
                                 setTimeout(function() {
                                     overlay.style.display = 'none';
                                 }, 500);
                             }
-                        }, 800);
+                        }, 1000); // Extra buffer to ensure stability
                     }
-                }, 50);
+                }, 100);
+                
+                // Safety fallback - hide after maximum time
+                setTimeout(function() {
+                    clearInterval(checkInterval);
+                    const overlay = document.getElementById('loading-overlay');
+                    if (overlay && overlay.style.display !== 'none') {
+                        overlay.style.opacity = '0';
+                        setTimeout(function() {
+                            overlay.style.display = 'none';
+                        }, 500);
+                    }
+                }, 10000); // Max 10 seconds fallback
+            }
+            
+            // Start checking when DOM is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                hideDefaultDashLoading();
+                hideLoadingWhenReady();
+            });
+            
+            // Also start checking on window load as backup
+            window.addEventListener('load', function() {
+                hideLoadingWhenReady();
             });
         </script>
     </body>

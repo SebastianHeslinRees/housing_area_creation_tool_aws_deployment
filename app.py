@@ -670,7 +670,7 @@ app.layout = dbc.Container([
         id='animated-map', 
         figure=fig_dual_animated if fig_dual_animated else go.Figure(), 
         style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)', 'overflow': 'hidden'},
-        config={'displayModeBar': False}
+        config={'displayModeBar': True}
     ),
     
     # Interactive Line Graphs by Ward
@@ -694,7 +694,7 @@ app.layout = dbc.Container([
         id='line-graphs',
         figure=fig_line_graphs if fig_line_graphs else go.Figure(), 
         style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)', 'overflow': 'hidden'},
-        config={'displayModeBar': False}
+        config={'displayModeBar': True}
     ),
     
     html.Div([

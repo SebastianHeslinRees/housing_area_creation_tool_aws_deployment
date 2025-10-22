@@ -152,7 +152,8 @@ def create_dual_animated_map():
             fig.add_trace(frames[0].data[1], row=1, col=2)
     
     fig.update_layout(
-        title='Housing Units Added',
+        title='<b>Housing Units Added</b>',
+        title_x=0.5,
         mapbox1=dict(style='carto-positron', center={'lat': 51.5074, 'lon': -0.1278}, zoom=8),
         mapbox2=dict(style='carto-positron', center={'lat': 51.5074, 'lon': -0.1278}, zoom=8),
         height=580,  # Reduced to fit better in container
@@ -267,7 +268,7 @@ def create_interactive_line_graphs():
         dropdown_buttons.append(dict(label=ward_name, method="update", args=[{"visible": visibility}]))
     
     fig.update_layout(
-        title='Housing Trajectories by Ward',
+        title='<b>Housing Trajectories by Ward</b>',
         height=580,  # Reduced to fit better in container
         width=1200,
         showlegend=True,
@@ -317,7 +318,8 @@ def create_line_graph_for_ward(selected_ward):
         fig.add_trace(trace_sites, row=1, col=2)
     
     fig.update_layout(
-        title=f'Housing Trajectories - {selected_ward}',
+        title=f'<b>Housing Trajectories - {selected_ward}</b>',
+        title_x=0.5,
         height=580,  # Reduced to fit better in container
         width=1200,
         showlegend=True,
@@ -331,7 +333,7 @@ def create_line_graph_for_ward(selected_ward):
     
     return fig
 
-# ---------------- Initialize Figures ----------------
+# ---------------- Initialise Figures ----------------
 fig_dual_animated, common_years = create_dual_animated_map()
 fig_line_graphs, ward_names = create_interactive_line_graphs()
 

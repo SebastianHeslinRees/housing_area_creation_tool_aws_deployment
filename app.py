@@ -271,6 +271,143 @@ fig_line_graphs = create_interactive_line_graphs()
 # ---------------- Dash App Layout ----------------
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE])
 
+# Add GLA favicon and custom loading spinner
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        <link rel="icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png" type="image/png">
+        {%favicon%}
+        {%css%}
+        <style>
+            /* Loading spinner overlay */
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, #0074D9 0%, #FF851B 100%);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                transition: opacity 0.5s ease-out;
+            }
+            
+            /* Spinner animation */
+            .spinner {
+                width: 80px;
+                height: 80px;
+                border: 6px solid rgba(255, 255, 255, 0.3);
+                border-top: 6px solid white;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-bottom: 20px;
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            /* Loading text */
+            .loading-text {
+                color: white;
+                font-family: Arial, sans-serif;
+                font-size: 24px;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                margin-bottom: 10px;
+            }
+            
+            .loading-subtext {
+                color: rgba(255, 255, 255, 0.9);
+                font-family: Arial, sans-serif;
+                font-size: 16px;
+                text-align: center;
+                max-width: 300px;
+            }
+            
+            /* GLA logo in loading screen */
+            .loading-logo {
+                width: 60px;
+                height: 60px;
+                margin-bottom: 30px;
+                border-radius: 50%;
+                background: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }
+            
+            .loading-logo img {
+                width: 40px;
+                height: 40px;
+                object-fit: contain;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Loading overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-logo">
+                <img src="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png" alt="GLA Logo">
+            </div>
+            <div class="spinner"></div>
+            <div class="loading-text">Loading Dashboard</div>
+            <div class="loading-subtext">Preparing housing trajectory visualisations...</div>
+        </div>
+        
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+        
+        <script>
+            // Hide loading overlay when page is fully loaded
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    const overlay = document.getElementById('loading-overlay');
+                    if (overlay) {
+                        overlay.style.opacity = '0';
+                        setTimeout(function() {
+                            overlay.style.display = 'none';
+                        }, 500);
+                    }
+                }, 1000); // Show spinner for at least 1 second
+            });
+            
+            // Also hide when Dash is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                // Wait for Dash to render main content
+                const checkDashReady = setInterval(function() {
+                    const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
+                    if (dashContainer) {
+                        clearInterval(checkDashReady);
+                        setTimeout(function() {
+                            const overlay = document.getElementById('loading-overlay');
+                            if (overlay && overlay.style.display !== 'none') {
+                                overlay.style.opacity = '0';
+                                setTimeout(function() {
+                                    overlay.style.display = 'none';
+                                }, 500);
+                            }
+                        }, 500);
+                    }
+                }, 100);
+            });
+        </script>
+    </body>
+</html>
+'''
+
 # Colours
 primary_color = "#0074D9"  # Blue
 secondary_color = "#FF851B"  # Orange
@@ -335,10 +472,11 @@ app.layout = dbc.Container([
             id='year-slider',
             min=min_year,
             max=max_year,
-            value=default_year,
+            value=2027,
             marks={year: str(year) for year in common_years[::2]} if common_years else {},
             step=1,
-            tooltip={"placement": "bottom", "always_visible": True}
+            tooltip={"placement": "bottom", "always_visible": True},
+            included=False
         )
     ], style={'marginBottom': 30, 'padding': '20px', 'backgroundColor': 'white', 'borderRadius': '10px', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'}),
     
@@ -373,7 +511,16 @@ app.layout = dbc.Container([
         ]
     ),
     
-    html.Footer("Data Visualisation Dashboard - Blue & Orange Theme", style={'textAlign': 'center', 'color': secondary_color, 'marginTop': 50, 'fontWeight': 'bold', 'fontSize': '16px'})
+    html.Div([
+        html.P("This is an automated report produced by the Greater London Authority (GLA)", 
+               style={'margin': '10px 0', 'fontSize': '14px', 'color': '#666'}),
+        html.P([
+            "If you require further information, please email ",
+            html.A("Sebastian.Heslin-Rees@london.gov.uk", 
+                   href="mailto:Sebastian.Heslin-Rees@london.gov.uk",
+                   style={'color': primary_color, 'textDecoration': 'underline'})
+        ], style={'margin': '10px 0', 'fontSize': '14px', 'color': '#666'})
+    ], className="footer", style={'textAlign': 'center', 'marginTop': 50, 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderTop': f'2px solid {secondary_color}', 'borderRadius': '5px'})
     
 ], fluid=True, style={'backgroundColor': bg_color, 'padding': '20px'})
 

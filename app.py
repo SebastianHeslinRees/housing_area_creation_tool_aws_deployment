@@ -92,9 +92,6 @@ def create_dual_animated_map():
                     len=0.8, 
                     thickness=15,
                     title_side="right",
-                    bgcolor="rgba(255,255,255,0.8)",
-                    bordercolor="darkblue",
-                    borderwidth=2
                 )
             )
         )
@@ -121,9 +118,6 @@ def create_dual_animated_map():
                     len=0.8, 
                     thickness=15,
                     title_side="right",
-                    bgcolor="rgba(255,255,255,0.8)",
-                    bordercolor="darkorange",
-                    borderwidth=2
                 )
             )
         )

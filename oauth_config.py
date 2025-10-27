@@ -34,7 +34,7 @@ def create_msal_app():
     )
 
 def get_auth_url():
-    """Get the authorization URL to redirect users to Microsoft login"""
+    """Get the authorisation URL to redirect users to Microsoft login"""
     app = create_msal_app()
     auth_url = app.get_authorization_request_url(
         SCOPES,

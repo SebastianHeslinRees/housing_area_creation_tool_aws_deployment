@@ -8,9 +8,9 @@ STEP 1: Add these imports to the top of your app.py file:
 from auth import create_login_layout, check_auth, get_user_info
 
 """
-STEP 2: Modify your app initialization section in app.py
+STEP 2: Modify your app initialisation section in app.py
 
-Find where you initialize your Dash app and modify the layout:
+Find where you initialise your Dash app and modify the layout:
 """
 
 # Replace your existing app.layout = ... with:
@@ -115,9 +115,9 @@ def logout_user(n_clicks):
     return dash.no_update
 
 """
-STEP 5: Add new authorized users
+STEP 5: Add new authorised users
 
-To add new users, edit the AUTHORIZED_USERS dictionary in auth.py:
+To add new users, edit the authoriseD_USERS dictionary in auth.py:
 
 1. Add their email address
 2. Generate a password hash by uncommenting the lines at the bottom of auth.py

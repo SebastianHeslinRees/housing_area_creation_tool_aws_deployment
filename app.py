@@ -10,7 +10,7 @@ import geopandas as gpd
 from shapely import wkt
 
 # Authentication imports
-from auth import create_login_layout, is_authorized_email, get_user_info, check_auth
+from auth import create_login_layout, is_authorised_email, get_user_info, check_auth
 
 # Test imports
 print("DEBUG: Authentication functions imported successfully")

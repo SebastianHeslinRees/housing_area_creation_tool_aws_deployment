@@ -3,9 +3,10 @@ Simple Authentication module for the GLA Housing Dashboard
 """
 import dash
 from dash import html, dcc
+import os
 
-# Authorized email addresses with fixed password
-AUTHORIZED_EMAILS = {
+# authorised email addresses with fixed password
+authoriseD_EMAILS = {
     'Sebastian.Heslin-Rees@london.gov.uk': {
         'name': 'Sebastian Heslin-Rees',
         'role': 'admin'
@@ -17,16 +18,16 @@ AUTHORIZED_EMAILS = {
 
 }
 
-# Fixed password for all authorized users
-FIXED_PASSWORD = "dashboardgla"
+# Fixed password for all authorised users - get from environment variable
+FIXED_PASSWORD = os.getenv('DASHBOARD_PASSWORD', 'dashboardgla')  # Default for local development
 
-def is_authorized_email(email):
-    """Check if email is in authorized list"""
-    return email in AUTHORIZED_EMAILS
+def is_authorised_email(email):
+    """Check if email is in authorised list"""
+    return email in authoriseD_EMAILS
 
 def get_user_info(email):
-    """Get user information from authorized emails"""
-    return AUTHORIZED_EMAILS.get(email, {})
+    """Get user information from authorised emails"""
+    return authoriseD_EMAILS.get(email, {})
 
 def verify_password(password):
     """Verify password against fixed password"""
@@ -34,7 +35,7 @@ def verify_password(password):
 
 def check_auth(email, password):
     """Check if email and password are valid"""
-    return is_authorized_email(email) and verify_password(password)
+    return is_authorised_email(email) and verify_password(password)
 
 def create_login_layout():
     """Create the login page layout"""
@@ -46,7 +47,7 @@ def create_login_layout():
             ),
             html.H2("GLA Housing Dashboard",
                    style={'textAlign': 'center', 'color': '#1E3A5F', 'marginBottom': '10px'}),
-            html.P("Authorized Access Required",
+            html.P("authorised Access Required",
                    style={'textAlign': 'center', 'color': '#666', 'marginBottom': '30px'}),
             
             html.Div([

@@ -40,7 +40,7 @@ def check_email(n_clicks, email):
         if email == "Sebastian.Heslin-Rees@london.gov.uk":
             return {'authenticated': True}, "Login successful!"
         else:
-            return {}, "Email not authorized"
+            return {}, "Email not authorised"
     return {}, ""
 
 if __name__ == '__main__':

@@ -8,6 +8,13 @@ AWSCLIV2.pkg
 Dockerfile
 task-definition.json
 
+# Security: Ignore environment files with sensitive data
+.env
+.env.local
+.env.production
+config.ini
+secrets.json
+
 # Python cache
 __pycache__/
 *.pyc

@@ -13,3 +13,5 @@ run:
   env:
     - name: PORT
       value: "8080"
+    - name: DASHBOARD_PASSWORD
+      value: "dashboardgla"

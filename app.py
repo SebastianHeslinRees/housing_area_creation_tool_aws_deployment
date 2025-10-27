@@ -9,6 +9,13 @@ from plotly.subplots import make_subplots
 import geopandas as gpd
 from shapely import wkt
 
+# Authentication imports
+from auth import create_login_layout, is_authorized_email, get_user_info, check_auth
+
+# Test imports
+print("DEBUG: Authentication functions imported successfully")
+# Debug line removed for OAuth setup
+
 # Colours Palette 
 primary_color = "#1E59A6"      
 secondary_color = "#E67E22"    
@@ -338,7 +345,7 @@ fig_dual_animated, common_years = create_dual_animated_map()
 fig_line_graphs, ward_names = create_interactive_line_graphs()
 
 # ---------------- Dash App Layout ----------------
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE], suppress_callback_exceptions=True)
 
 # Add GLA favicon and custom loading spinner
 app.index_string = '''
@@ -572,10 +579,25 @@ min_year = min(common_years) if common_years else 2022
 max_year = max(common_years) if common_years else 2050
 default_year = min_year
 
-app.layout = dbc.Container([
+# Authentication-enabled layout
+app.layout = html.Div([
+    dcc.Store(id='session-store', storage_type='session'),
+    html.Div(id='page-content')
+])
+
+def get_main_dashboard():
+    """Return the main dashboard layout"""
+    return dbc.Container([
     
     html.Div([
-        html.H1("Housing Units Dashboard", style={'textAlign': 'center', 'color': primary_color, 'fontWeight': 'bold', 'marginTop': 20, 'textShadow': '2px 2px 4px #888'}),
+        html.Div([
+            html.Button("Logout", id="logout-button", 
+                       style={'float': 'right', 'margin': '10px 0',
+                             'backgroundColor': '#dc3545', 'color': 'white',
+                             'border': 'none', 'padding': '8px 15px',
+                             'borderRadius': '5px', 'cursor': 'pointer', 'fontSize': '14px'})
+        ], style={'textAlign': 'right', 'marginBottom': '10px'}),
+        html.H1("Housing Units Dashboard", style={'textAlign': 'center', 'color': primary_color, 'fontWeight': 'bold', 'marginTop': 0, 'textShadow': '2px 2px 4px #888'}),
         html.Hr(style={'borderColor': secondary_color, 'height': '3px'})
     ]),
     
@@ -708,8 +730,58 @@ app.layout = dbc.Container([
         ], style={'margin': '10px 0', 'fontSize': '14px', 'color': text_light})
     ], className="footer", style={'textAlign': 'center', 'marginTop': 50, 'padding': '20px', 'backgroundColor': light_blue, 'borderTop': f'2px solid {secondary_color}', 'borderRadius': '5px'})
     
-], fluid=True, style={'backgroundColor': bg_color, 'padding': '20px'})
+    ], fluid=True, style={'backgroundColor': bg_color, 'padding': '20px'})
 
+# Authentication callbacks
+@app.callback(
+    Output('page-content', 'children'),
+    [Input('session-store', 'data')]
+)
+def display_page(session_data):
+    """Display login page or main dashboard based on authentication"""
+    if session_data and session_data.get('authenticated'):
+        return get_main_dashboard()
+    else:
+        return create_login_layout()
+
+@app.callback(
+    [Output('session-store', 'data'),
+     Output('auth-output', 'children')],
+    [Input('login-button', 'n_clicks')],
+    [State('email-input', 'value'),
+     State('password-input', 'value')]
+)
+def handle_login(n_clicks, email, password):
+    """Handle login authentication"""
+    if n_clicks > 0:
+        if email and password:
+            if check_auth(email, password):
+                # Successful login
+                user_info = get_user_info(email)
+                return {
+                    'authenticated': True,
+                    'email': email,
+                    'name': user_info.get('name', email),
+                    'role': user_info.get('role', 'user')
+                }, ""
+            else:
+                # Failed login
+                return dash.no_update, html.Div([
+                    html.P("Invalid email or password", style={'color': 'red', 'fontWeight': 'bold'}),
+                    html.P("Please check your credentials and try again.", style={'color': '#666', 'fontSize': '14px'})
+                ])
+        else:
+            # Missing fields
+            return dash.no_update, html.Div([
+                html.P("Please enter both email and password", style={'color': 'red', 'fontWeight': 'bold'})
+            ])
+    return dash.no_update, ""
+
+
+
+
+
+# @app.callback(
 # Callback to update metric cards and year display based on selected year
 @app.callback(
     [Output('savills-total', 'children'),

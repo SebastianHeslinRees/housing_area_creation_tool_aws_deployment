@@ -5,13 +5,13 @@ import dash
 from dash import html, dcc
 import os
 
-# authorised email addresses with fixed password
+# authorised email addresses with fixed password (stored in lowercase for case-insensitive matching)
 authoriseD_EMAILS = {
-    'Sebastian.Heslin-Rees@london.gov.uk': {
+    'sebastian.heslin-rees@london.gov.uk': {
         'name': 'Sebastian Heslin-Rees',
         'role': 'admin'
     },
-    'Ben.Corr@london.gov.uk': {
+    'ben.corr@london.gov.uk': {
         'name': 'Ben Corr',
         'role': 'user'
     }
@@ -22,12 +22,16 @@ authoriseD_EMAILS = {
 FIXED_PASSWORD = os.getenv('DASHBOARD_PASSWORD', 'dashboardgla')  # Default for local development
 
 def is_authorised_email(email):
-    """Check if email is in authorised list"""
-    return email in authoriseD_EMAILS
+    """Check if email is in authorised list (case-insensitive)"""
+    if not email:
+        return False
+    return email.lower() in authoriseD_EMAILS
 
 def get_user_info(email):
-    """Get user information from authorised emails"""
-    return authoriseD_EMAILS.get(email, {})
+    """Get user information from authorised emails (case-insensitive)"""
+    if not email:
+        return {}
+    return authoriseD_EMAILS.get(email.lower(), {})
 
 def verify_password(password):
     """Verify password against fixed password"""

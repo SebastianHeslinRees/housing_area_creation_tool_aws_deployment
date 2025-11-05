@@ -1,353 +1,94 @@
+# FERTILITY DASHBOARD -     Version
+"""UK Fertility Rate Dashboard - Dash app entrypoint
 
+This is the application entrypoint used for local development and production
+(gunicorn will import `server` from this module).
+
+Notes:
+- Runs on port 8022 by default when executed directly.
+- Use `gunicorn --bind 0.0.0.0:8022 --workers 1 app:server` for production.
+"""
+import os
 import dash
-from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
-import pandas as pd
-import numpy as np
+from dash import dcc, html, Input, Output, State
+import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import pandas as pd
 import geopandas as gpd
-from shapely import wkt
+import json
 
-# Authentication imports
-from auth import create_login_layout, is_authorised_email, get_user_info, check_auth
+# ----------------- Configuration -----------------
+PORT = int(os.environ.get('PORT', 8022))
+S3_BUCKET = os.environ.get('S3_BUCKET', 'dpa-population-projection-data')
+S3_PREFIX = os.environ.get('S3_PREFIX', 'dpa-apps/')
+S3_REGION = os.environ.get('AWS_REGION', 'eu-west-2')
 
-# Test imports
-print("DEBUG: Authentication functions imported successfully")
-# Debug line removed for OAuth setup
-
-# Colours Palette 
-primary_color = "#1E59A6"      
-secondary_color = "#E67E22"    
-accent_color = "#2980B9"       
-light_blue = "#EBF3FD"         
-orange_light = "#FDF2E9"      
-bg_color = "#F8FAFE"           
-text_dark = "#1F4D7C"          
-text_light = "#7F8C8D"        
-
-def _safe_load_wkt(val):
-    if pd.isna(val):
-        return None
+# ----------------- Data Loading Functions -----------------
+def download_from_s3_if_needed(filename, bucket=S3_BUCKET, prefix=S3_PREFIX):
+    """Download file from S3 if not present locally (for AWS deployment)"""
+    if os.path.exists(filename):
+        print(f"✓ Using local file: {filename}")
+        return filename
+    
     try:
-        return wkt.loads(val)
-    except Exception:
-        return None
+        import boto3
+        s3_key = f"{prefix}{filename}"
+        print(f"⬇ Downloading s3://{bucket}/{s3_key}...")
+        s3 = boto3.client('s3', region_name=S3_REGION)
+        s3.download_file(bucket, s3_key, filename)
+        print(f"✓ Downloaded {filename} successfully")
+        return filename
+    except Exception as e:
+        print(f"❌ Error downloading {filename} from S3: {e}")
+        raise
 
-# Load and process data
-print("Loading data...")
-core_largesites_df = pd.read_csv('merged_Core_Largesites_gdf.csv')
-ward_savills_df = pd.read_csv('merged_ward_savills_gdf.csv')
+# ----------------- Load Data -----------------
+print("Loading fertility and geometry data...")
 
-# Convert geometry
-core_largesites_df['geometry'] = core_largesites_df['geometry'].apply(_safe_load_wkt)
-ward_savills_df['geometry'] = ward_savills_df['geometry'].apply(_safe_load_wkt)
+# Download from S3 if needed (for AWS deployment)
+asfr_file = download_from_s3_if_needed('asfr_merged.geojson')
+tfr_file = download_from_s3_if_needed('tfr_merged.geojson')
 
-# Create GeoDataFrames
-merged_Core_Largesites_gdf = gpd.GeoDataFrame(core_largesites_df, geometry='geometry', crs="EPSG:4326")
-merged_ward_savills_gdf = gpd.GeoDataFrame(ward_savills_df, geometry='geometry', crs="EPSG:4326")
+# Read GeoJSON files
+asfr_merged = gpd.read_file(asfr_file)
+tfr_merged = gpd.read_file(tfr_file)
 
-print("Data loaded successfully")
+# Clean TFR data
+tfr_clean = tfr_merged[['LAD23CD', 'LAD23NM', 'geometry', 'year', 'tfr']].copy()
+if tfr_clean.crs is None:
+    tfr_clean = tfr_clean.set_crs("EPSG:27700", allow_override=True)
+tfr_clean = tfr_clean.to_crs(epsg=4326)
+tfr_clean['geometry'] = tfr_clean['geometry'].simplify(tolerance=0.007, preserve_topology=True)
+tfr_clean = tfr_clean[tfr_clean.is_valid].reset_index(drop=True)
 
-# --------- Dual Animated Map Function ---------
-def create_dual_animated_map():
-    ward_numeric = merged_ward_savills_gdf.select_dtypes(include=[np.number]).columns.tolist()
-    sites_numeric = merged_Core_Largesites_gdf.select_dtypes(include=[np.number]).columns.tolist()
-    
-    ward_years = [col for col in ward_numeric if str(col).isdigit() and len(str(col)) == 4]
-    sites_years = [col for col in sites_numeric if str(col).isdigit() and len(str(col)) == 4]
-    common_years = sorted(set(ward_years) & set(sites_years))
-    
-    if not common_years:
-        return None, []
-    
-    # Convert to integers for proper sorting
-    common_years = sorted([int(year) for year in common_years])
-    
-    ward_gdf_web = merged_ward_savills_gdf.to_crs('EPSG:4326') if merged_ward_savills_gdf.crs != 'EPSG:4326' else merged_ward_savills_gdf
-    sites_gdf_web = merged_Core_Largesites_gdf.to_crs('EPSG:4326') if merged_Core_Largesites_gdf.crs != 'EPSG:4326' else merged_Core_Largesites_gdf
-    
-    fig = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=('Savills Trajectory', 'Core Largesites Baseline'),
-        specs=[[{'type': 'mapbox'}, {'type': 'mapbox'}]],
-        horizontal_spacing=0.08
-    )
-    
-    frames = []
-    for year in common_years:
-        frame_data = []
-        ward_clean = ward_gdf_web.dropna(subset=[str(year), 'geometry'])
-        sites_clean = sites_gdf_web.dropna(subset=[str(year), 'geometry'])
-        
-        # Calculate separate ranges for each dataset
-        ward_values = ward_clean[str(year)].dropna().values if not ward_clean.empty else [0]
-        sites_values = sites_clean[str(year)].dropna().values if not sites_clean.empty else [0]
-        
-        ward_min, ward_max = 0, max(ward_values) if len(ward_values) > 0 else 100
-        sites_min, sites_max = 0, max(sites_values) if len(sites_values) > 0 else 100
-        
-        # Savills data with bright blue to orange colour scale and separate legend
-        frame_data.append(
-            go.Choroplethmapbox(
-                geojson=ward_clean.__geo_interface__,
-                locations=ward_clean.index,
-                z=ward_clean[str(year)],
-                colorscale=[[0, accent_color], [1, secondary_color]],  # Bright blue to orange
-                zmin=ward_min,
-                zmax=ward_max,
-                text=ward_clean['wd22nm'],
-                hovertemplate=f'<b>%{{text}}</b><br>Savills {year}: %{{z}}<extra></extra>',
-                marker_opacity=0.7,
-                marker_line_width=0.5,
-                marker_line_color='white',
-                name='Savills Data',
-                showscale=True,
-                colorbar=dict(
-                    title=f"Savills Units ({year})", 
-                    x=0.45, 
-                    len=0.8, 
-                    thickness=15,
-                    title_side="right",
-                )
-            )
-        )
-        
-        # Core Sites data with bright blue to orange colour scale and separate legend
-        frame_data.append(
-            go.Choroplethmapbox(
-                geojson=sites_clean.__geo_interface__,
-                locations=sites_clean.index,
-                z=sites_clean[str(year)],
-                colorscale=[[0, accent_color], [1, secondary_color]],  # Bright blue to orange
-                zmin=sites_min,
-                zmax=sites_max,
-                text=sites_clean['wd22nm'],
-                hovertemplate=f'<b>%{{text}}</b><br>Core Sites {year}: %{{z}}<extra></extra>',
-                marker_opacity=0.7,
-                marker_line_width=0.5,
-                marker_line_color='white',
-                name='Core Sites Data',
-                showscale=True,
-                colorbar=dict(
-                    title=f"Core Sites Units ({year})", 
-                    x=1.02, 
-                    len=0.8, 
-                    thickness=15,
-                    title_side="right",
-                )
-            )
-        )
-        
-        frames.append(go.Frame(data=frame_data, name=str(year)))
-    
-    # Initial traces - start at 2027 if available, otherwise first year
-    if frames:
-        # Find the index for year 2027
-        start_index = 0
-        for i, year in enumerate(common_years):
-            if year == 2027:
-                start_index = i
-                break
-        
-        # Make sure we don't go out of bounds
-        if start_index < len(frames):
-            fig.add_trace(frames[start_index].data[0], row=1, col=1)
-            fig.add_trace(frames[start_index].data[1], row=1, col=2)
-        else:
-            fig.add_trace(frames[0].data[0], row=1, col=1)
-            fig.add_trace(frames[0].data[1], row=1, col=2)
-    
-    fig.update_layout(
-        title='<b>Housing Units Added</b>',
-        title_x=0.5,
-        mapbox1=dict(style='carto-positron', center={'lat': 51.5074, 'lon': -0.1278}, zoom=8),
-        mapbox2=dict(style='carto-positron', center={'lat': 51.5074, 'lon': -0.1278}, zoom=8),
-        height=580,  # Reduced to fit better in container
-        width=1200,
-        showlegend=False,
-        margin=dict(l=5, r=5, t=40, b=5),  # Tighter margins to fit container
-        updatemenus=[{
-            'type': 'buttons',
-            'showactive': False,
-            'x': 0.1,
-            'y': 1.02,
-            'xanchor': 'right',
-            'yanchor': 'top',
-            'buttons': [
-                {
-                    'label': 'Play',
-                    'method': 'animate',
-                    'args': [None, {
-                        'frame': {'duration': 1500, 'redraw': True},
-                        'fromcurrent': True,
-                        'transition': {'duration': 750}
-                    }]
-                },
-                {
-                    'label': 'Pause', 
-                    'method': 'animate',
-                    'args': [[None], {
-                        'frame': {'duration': 0, 'redraw': False},
-                        'mode': 'immediate',
-                        'transition': {'duration': 0}
-                    }]
-                }
-            ]
-        }],
-        sliders=[{
-            'active': common_years.index(2027) if 2027 in common_years else 0,
-            'yanchor': 'top',
-            'xanchor': 'left',
-            'currentvalue': {
-                'font': {'size': 16},
-                'prefix': 'Year: ',
-                'visible': True,
-                'xanchor': 'right'
-            },
-            'transition': {'duration': 750, 'easing': 'cubic-in-out'},
-            'pad': {'b': 10, 't': 50},
-            'len': 0.9,
-            'x': 0.1,
-            'y': 0,
-            'steps': [
-                {
-                    'args': [[year], {
-                        'frame': {'duration': 750, 'redraw': True},
-                        'mode': 'immediate',
-                        'transition': {'duration': 750}
-                    }],
-                    'label': str(year),
-                    'method': 'animate'
-                } for year in common_years
-            ]
-        }]
-    )
-    
-    fig.frames = frames
-    return fig, common_years
+# Clean ASFR data  
+asfr_clean = asfr_merged[['LAD23CD','LAD23NM','geometry','age','year','fertility_rate']].copy()
+if asfr_clean.crs is None:
+    asfr_clean = asfr_clean.set_crs("EPSG:27700", allow_override=True)
+asfr_clean = asfr_clean.to_crs(epsg=4326)
+asfr_clean['geometry'] = asfr_clean['geometry'].simplify(tolerance=0.007, preserve_topology=True)
+asfr_clean = asfr_clean[asfr_clean.is_valid].reset_index(drop=True)
 
-# --------- Interactive Line Graph Function ---------
-def create_interactive_line_graphs():
-    merged_ward_savills_gdf_line = merged_ward_savills_gdf.drop(columns=['2021'], errors='ignore')
-    merged_Core_Largesites_gdf_line = merged_Core_Largesites_gdf.drop(columns=['2021'], errors='ignore')
-    
-    ward_numeric = merged_ward_savills_gdf_line.select_dtypes(include=[np.number]).columns.tolist()
-    sites_numeric = merged_Core_Largesites_gdf_line.select_dtypes(include=[np.number]).columns.tolist()
-    
-    ward_years = [col for col in ward_numeric if str(col).isdigit() and len(str(col)) == 4]
-    sites_years = [col for col in sites_numeric if str(col).isdigit() and len(str(col)) == 4]
-    common_years = sorted(set(ward_years) & set(sites_years))
-    
-    if not common_years:
-        return None
-    
-    # Convert to integers for proper sorting
-    common_years = sorted([int(year) for year in common_years])
-    
-    ward_names = merged_ward_savills_gdf['wd22nm'].dropna().unique()
-    ward_names = sorted([name for name in ward_names if pd.notna(name)])
-    if len(ward_names) == 0:
-        return None
-    
-    fig = make_subplots(rows=1, cols=2, subplot_titles=('Savills Trajectory', 'Core Largesites Baseline'), x_title='Year', y_title='Housing Units')
-    
-    all_traces = []
-    for i, ward_name in enumerate(ward_names):
-        ward_savills_data = merged_ward_savills_gdf[merged_ward_savills_gdf['wd22nm'] == ward_name]
-        ward_sites_data = merged_Core_Largesites_gdf[merged_Core_Largesites_gdf['wd22nm'] == ward_name]
-        
-        savills_values = [ward_savills_data[str(year)].iloc[0] if str(year) in ward_savills_data.columns else 0 for year in common_years] if not ward_savills_data.empty else [0]*len(common_years)
-        sites_values = [ward_sites_data[str(year)].iloc[0] if str(year) in ward_sites_data.columns else 0 for year in common_years] if not ward_sites_data.empty else [0]*len(common_years)
-        
-        trace_savills = go.Scatter(x=common_years, y=savills_values, mode='lines+markers', name=f'{ward_name} (Savills)', visible=(i==0), line=dict(color=accent_color, width=2), marker=dict(size=6))
-        trace_sites = go.Scatter(x=common_years, y=sites_values, mode='lines+markers', name=f'{ward_name} (Sites)', visible=(i==0), line=dict(color=secondary_color, width=2), marker=dict(size=6))
-        
-        fig.add_trace(trace_savills, row=1, col=1)
-        fig.add_trace(trace_sites, row=1, col=2)
-        all_traces.extend([trace_savills, trace_sites])
-    
-    dropdown_buttons = []
-    for i, ward_name in enumerate(ward_names):
-        visibility = [False]*len(all_traces)
-        visibility[i*2] = True
-        visibility[i*2+1] = True
-        dropdown_buttons.append(dict(label=ward_name, method="update", args=[{"visible": visibility}]))
-    
-    fig.update_layout(
-        title='<b>Housing Trajectories by Ward</b>',
-        height=580,  # Reduced to fit better in container
-        width=1200,
-        showlegend=True,
-        margin=dict(l=30, r=30, t=60, b=30)  # Tighter margins to fit container
-    )
-    
-    fig.update_xaxes(title_text="Year", row=1, col=1)
-    fig.update_xaxes(title_text="Year", row=1, col=2)
-    fig.update_yaxes(title_text="Housing Units", row=1, col=1)
-    fig.update_yaxes(title_text="Housing Units", row=1, col=2)
-    
-    return fig, ward_names
+# Convert to strings for serialisation
+years = sorted([str(year) for year in tfr_clean['year'].unique()])
+ages = sorted([str(age) for age in asfr_clean['age'].unique()])
+lads = sorted(tfr_clean['LAD23NM'].unique())
 
-# --------- Function to create line graph for specific ward ---------
-def create_line_graph_for_ward(selected_ward):
-    merged_ward_savills_gdf_line = merged_ward_savills_gdf.drop(columns=['2021'], errors='ignore')
-    merged_Core_Largesites_gdf_line = merged_Core_Largesites_gdf.drop(columns=['2021'], errors='ignore')
-    
-    ward_numeric = merged_ward_savills_gdf_line.select_dtypes(include=[np.number]).columns.tolist()
-    sites_numeric = merged_Core_Largesites_gdf_line.select_dtypes(include=[np.number]).columns.tolist()
-    
-    ward_years = [col for col in ward_numeric if str(col).isdigit() and len(str(col)) == 4]
-    sites_years = [col for col in sites_numeric if str(col).isdigit() and len(str(col)) == 4]
-    common_years = sorted(set(ward_years) & set(sites_years))
-    
-    if not common_years:
-        return go.Figure()
-    
-    # Convert to integers for proper sorting
-    common_years = sorted([int(year) for year in common_years])
-    
-    fig = make_subplots(rows=1, cols=2, subplot_titles=('Savills Trajectory', 'Core Largesites Baseline'))
-    
-    # Get data for selected ward
-    ward_savills_data = merged_ward_savills_gdf[merged_ward_savills_gdf['wd22nm'] == selected_ward]
-    ward_sites_data = merged_Core_Largesites_gdf[merged_Core_Largesites_gdf['wd22nm'] == selected_ward]
-    
-    if not ward_savills_data.empty and not ward_sites_data.empty:
-        savills_values = [ward_savills_data[str(year)].iloc[0] if str(year) in ward_savills_data.columns else 0 for year in common_years]
-        sites_values = [ward_sites_data[str(year)].iloc[0] if str(year) in ward_sites_data.columns else 0 for year in common_years]
-        
-        # Add traces for the selected ward
-        trace_savills = go.Scatter(x=common_years, y=savills_values, mode='lines+markers', name=f'{selected_ward} (Savills)', line=dict(color=accent_color, width=3), marker=dict(size=8))
-        trace_sites = go.Scatter(x=common_years, y=sites_values, mode='lines+markers', name=f'{selected_ward} (Sites)', line=dict(color=secondary_color, width=3), marker=dict(size=8))
-        
-        fig.add_trace(trace_savills, row=1, col=1)
-        fig.add_trace(trace_sites, row=1, col=2)
-    
-    fig.update_layout(
-        title=f'<b>Housing Trajectories - {selected_ward}</b>',
-        title_x=0.5,
-        height=580,  # Reduced to fit better in container
-        width=1200,
-        showlegend=True,
-        margin=dict(l=30, r=30, t=60, b=30)  # Tighter margins to fit container
-    )
-    
-    fig.update_xaxes(title_text="Year", row=1, col=1)
-    fig.update_xaxes(title_text="Year", row=1, col=2)
-    fig.update_yaxes(title_text="Housing Units", row=1, col=1)
-    fig.update_yaxes(title_text="Housing Units", row=1, col=2)
-    
-    return fig
+# Ensure string columns
+tfr_clean['year'] = tfr_clean['year'].astype(str)
+asfr_clean['year'] = asfr_clean['year'].astype(str) 
+asfr_clean['age'] = asfr_clean['age'].astype(str)
 
-# ---------------- Initialise Figures ----------------
-fig_dual_animated, common_years = create_dual_animated_map()
-fig_line_graphs, ward_names = create_interactive_line_graphs()
+print(f"  dashboard ready: {len(years)} years, {len(ages)} ages, {len(lads)} LADs")
 
-# ---------------- Dash App Layout ----------------
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE], suppress_callback_exceptions=True)
+# Initialise Dash App
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE])
+app.title = "UK Fertility Dashboard - Enhanced"
+server = app.server  # Expose server for gunicorn
 
-# Add GLA favicon and custom loading spinner
+# loading spinner
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -355,29 +96,17 @@ app.index_string = '''
         {%metas%}
         <title>{%title%}</title>
         <link rel="icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png" type="image/png">
+        {%favicon%}
         {%css%}
         <style>
-            /* Hide ALL default Dash loading indicators */
-            ._dash-loading, .dash-spinner, .dash-loading, .loading {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-            }
-            
-            /* Hide any loading with data attributes */
-            [data-dash-is-loading="true"] {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            
-            /* Loading spinner overlay */
+            /*   Loading Spinner Overlay */
             .loading-overlay {
                 position: fixed;
                 top: 0;
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: linear-gradient(135deg, #1E3A5F 0%, #E67E22 100%);
+                background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%);
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
@@ -386,7 +115,7 @@ app.index_string = '''
                 transition: opacity 0.5s ease-out;
             }
             
-            /* Spinner animation */
+            /*   Spinner Animation */
             .spinner {
                 width: 80px;
                 height: 80px;
@@ -402,53 +131,119 @@ app.index_string = '''
                 100% { transform: rotate(360deg); }
             }
             
-            /* Loading text */
+            /*   Loading Text */
             .loading-text {
                 color: white;
-                font-family: Arial, sans-serif;
-                font-size: 24px;
+                font-family: "Arial", sans-serif;
+                font-size: 28px;
                 font-weight: bold;
                 text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
                 margin-bottom: 10px;
+                letter-spacing: 1px;
             }
             
             .loading-subtext {
-                color: rgba(255, 255, 255, 0.9);
-                font-family: Arial, sans-serif;
+                color: rgba(255, 255, 255, 0.95);
+                font-family: "Arial", sans-serif;
                 font-size: 16px;
                 text-align: center;
-                max-width: 300px;
+                max-width: 350px;
+                font-weight: 300;
             }
             
             /* GLA logo in loading screen */
             .loading-logo {
-                width: 60px;
-                height: 60px;
+                width: 70px;
+                height: 70px;
                 margin-bottom: 30px;
                 border-radius: 50%;
                 background: white;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+                animation: pulse 2s infinite;
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
             }
             
             .loading-logo img {
-                width: 40px;
-                height: 40px;
+                width: 50px;
+                height: 50px;
                 object-fit: contain;
+            }
+            
+            /*   Card Styling */
+            .metric-card {
+                transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+                border-radius: 12px !important;
+            }
+            
+            .metric-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+            }
+            
+            /*   Control Panel */
+            .control-panel {
+                background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+                border-radius: 15px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            }
+            
+            /*   Graph Containers */
+            .graph-container {
+                border-radius: 15px;
+                overflow: hidden;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+                transition: box-shadow 0.3s ease;
+            }
+            
+            .graph-container:hover {
+                box-shadow: 0 8px 25px rgba(0,0,0,0.18);
+            }
+            
+            /*   Typography */
+            .dashboard-title {
+                background: linear-gradient(45deg, #1e3a8a, #ea580c);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+            }
+            
+            /* Custom Dropdown Styling */
+            .Select-control {
+                border-radius: 8px !important;
+                border: 2px solid #e9ecef !important;
+                transition: all 0.2s ease !important;
+            }
+            
+            .Select-control:hover {
+                border-color: #1e3a8a !important;
+            }
+            
+            /* Fade-in animation for logo */
+            @keyframes fadeIn {
+                0% { opacity: 0; transform: translateY(-10px); }
+                100% { opacity: 1; transform: translateY(0); }
             }
         </style>
     </head>
     <body>
-        <!-- Loading overlay -->
+        <!--   Loading Overlay -->
         <div id="loading-overlay" class="loading-overlay">
             <div class="loading-logo">
                 <img src="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png" alt="GLA Logo">
             </div>
             <div class="spinner"></div>
-            <div class="loading-text">Loading Dashboard</div>
-            <div class="loading-subtext">Preparing housing trajectory visualisations...</div>
+            <div class="loading-text">UK Fertility Dashboard</div>
+            <div class="loading-subtext">Loading fertility rate analysis and interactive visualisations...</div>
         </div>
         
         {%app_entry%}
@@ -459,379 +254,617 @@ app.index_string = '''
         </footer>
         
         <script>
-            // Hide all default Dash loading indicators immediately
-            function hideDefaultDashLoading() {
-                // Hide all Dash loading spinners
-                const loadingSpinners = document.querySelectorAll('._dash-loading, .dash-spinner, [data-dash-is-loading="true"]');
-                loadingSpinners.forEach(spinner => {
-                    spinner.style.display = 'none !important';
-                    spinner.style.visibility = 'hidden !important';
-                });
-                
-                // Hide any loading overlays that might appear
-                const loadingOverlays = document.querySelectorAll('.loading, .spinner, .dash-loading');
-                loadingOverlays.forEach(overlay => {
-                    if (overlay.id !== 'loading-overlay') { // Don't hide our custom overlay
-                        overlay.style.display = 'none !important';
+            //   loading overlay management
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    const overlay = document.getElementById('loading-overlay');
+                    if (overlay) {
+                        overlay.style.opacity = '0';
+                        setTimeout(function() {
+                            overlay.style.display = 'none';
+                        }, 500);
                     }
-                });
-            }
+                }, 1200); // Extended display for   feel
+            });
             
-            // Run immediately and repeatedly to catch any loading indicators
-            hideDefaultDashLoading();
-            setInterval(hideDefaultDashLoading, 100);
-            
-            // Function to check if all Dash components are ready
-            function isDashFullyReady() {
-                try {
-                    // Check if main container is loaded
+            // Dash readiness detection
+            document.addEventListener('DOMContentLoaded', function() {
+                const checkDashReady = setInterval(function() {
                     const dashContainer = document.querySelector('[data-dash-is-loading="false"]');
-                    if (!dashContainer) return false;
-                    
-                    // More lenient check - look for any visible content
-                    const hasVisibleContent = document.querySelector('#main-content') && 
-                                            document.querySelector('#main-content').children.length > 0;
-                    if (!hasVisibleContent) return false;
-                    
-                    // Check if graphs exist (don't require full layout in cloud env)
-                    const graphs = document.querySelectorAll('.js-plotly-plot, [id*="map"], [id*="graph"]');
-                    if (graphs.length < 2) return false; // Should have at least 2 maps
-                    
-                    // Check if dropdown exists and has some structure
-                    const dropdown = document.querySelector('#ward-dropdown');
-                    if (!dropdown) return false;
-                    
-                    // More flexible content check - any of these indicate readiness
-                    const hasAnyPlots = document.querySelectorAll('.plotly, .js-plotly-plot').length > 0;
-                    const hasMapContent = document.querySelector('[id*="map-container"]');
-                    const hasDropdownStructure = document.querySelector('.Select-control, .dash-dropdown');
-                    
-                    return hasAnyPlots || hasMapContent || hasDropdownStructure;
-                } catch (e) {
-                    console.log('Error checking dash readiness:', e);
-                    return false;
-                }
-            }
-            
-            // Main function to hide loading overlay when everything is ready
-            function hideLoadingWhenReady() {
-                let checkCount = 0;
-                const maxChecks = 200; // 20 seconds max (100ms * 200)
-                
-                const checkInterval = setInterval(function() {
-                    checkCount++;
-                    hideDefaultDashLoading(); // Keep hiding default loaders
-                    
-                    // For cloud deployment, be more patient and use multiple strategies
-                    const isReady = isDashFullyReady();
-                    const hasMinimumTime = checkCount > 30; // At least 3 seconds
-                    const hasContent = document.querySelectorAll('.js-plotly-plot, [id*="map"], .plotly').length > 0;
-                    
-                    // On cloud, wait longer and be more flexible about "ready" state
-                    if ((isReady && hasMinimumTime) || (hasContent && checkCount > 80)) {
-                        clearInterval(checkInterval);
-                        // Longer buffer for cloud environment
+                    if (dashContainer) {
+                        clearInterval(checkDashReady);
                         setTimeout(function() {
                             const overlay = document.getElementById('loading-overlay');
-                            if (overlay) {
+                            if (overlay && overlay.style.display !== 'none') {
                                 overlay.style.opacity = '0';
                                 setTimeout(function() {
                                     overlay.style.display = 'none';
-                                }, 800); // Slower fade for cloud
+                                }, 500);
                             }
-                        }, 2000); // Longer wait for cloud stability
-                    }
-                    
-                    // Safety fallback
-                    if (checkCount >= maxChecks) {
-                        clearInterval(checkInterval);
-                        const overlay = document.getElementById('loading-overlay');
-                        if (overlay && overlay.style.display !== 'none') {
-                            overlay.style.opacity = '0';
-                            setTimeout(function() {
-                                overlay.style.display = 'none';
-                            }, 800);
-                        }
+                        }, 600);
                     }
                 }, 100);
-            }
-            
-            // Start checking when DOM is ready
-            document.addEventListener('DOMContentLoaded', function() {
-                hideDefaultDashLoading();
-                hideLoadingWhenReady();
-            });
-            
-            // Also start checking on window load as backup
-            window.addEventListener('load', function() {
-                hideLoadingWhenReady();
             });
         </script>
     </body>
 </html>
 '''
 
-# Ensure we have valid numeric years for the slider
-if not common_years:
-    common_years = [2022, 2023, 2024, 2025]  # Default years
+#colour scheme -  Orange & Blue
+colors = {
+    'primary': '#1e3a8a',      # Deep blue
+    'secondary': '#ea580c',    # Stylish orange  
+    'accent': '#3b82f6',       # Bright blue accent
+    'background': '#F8F9FA',   # Light background
+    'text': '#2C3E50',         # Dark text
+    'success': '#1d4ed8',      # Success blue
+    'warning': '#f59e0b',      # Warning orange
+    'card_bg': '#ffffff'       # Pure white cards
+}
 
-min_year = min(common_years) if common_years else 2022
-max_year = max(common_years) if common_years else 2050
-default_year = min_year
-
-# Authentication-enabled layout
-app.layout = html.Div([
-    dcc.Store(id='session-store', storage_type='session'),
-    html.Div(id='page-content')
-])
-
-def get_main_dashboard():
-    """Return the main dashboard layout"""
-    return dbc.Container([
+#Layout
+app.layout = dbc.Container([
     
+    #   Banner Header with GLA Logo
     html.Div([
+        # Banner with gradient background
         html.Div([
-            html.Button("Logout", id="logout-button", 
-                       style={'float': 'right', 'margin': '10px 0',
-                             'backgroundColor': '#dc3545', 'color': 'white',
-                             'border': 'none', 'padding': '8px 15px',
-                             'borderRadius': '5px', 'cursor': 'pointer', 'fontSize': '14px'})
-        ], style={'textAlign': 'right', 'marginBottom': '10px'}),
-        html.H1("Housing Units Dashboard", style={'textAlign': 'center', 'color': primary_color, 'fontWeight': 'bold', 'marginTop': 0, 'textShadow': '2px 2px 4px #888'}),
-        html.Hr(style={'borderColor': secondary_color, 'height': '3px'})
+            dbc.Row([
+                dbc.Col([
+                    html.Img(
+                        src="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png",
+                        style={
+                            'height': '210px',
+                            'filter': 'brightness(0) invert(1)',  # White logo
+                            'animation': 'fadeIn 1s ease-in'
+                        }
+                    )
+                ], width=2, className="d-flex align-items-center justify-content-center"),
+                
+                dbc.Col([
+                    html.H1("UK Fertility Rate Dashboard", 
+                           className="text-center mb-2",
+                           style={
+                               'fontSize': '2.8rem', 
+                               'fontWeight': '800', 
+                               'color': 'white',
+                               'textShadow': '2px 2px 4px rgba(0,0,0,0.3)',
+                               'letterSpacing': '-0.5px'
+                           }),
+                    html.H5("Comprehensive Analysis of Total & Age-Specific Fertility Rates (1993-2023)",
+                           className="text-center mb-0",
+                           style={
+                               'fontWeight': '300', 
+                               'color': 'rgba(255,255,255,0.95)',
+                               'letterSpacing': '0.5px'
+                           })
+                ], width=8, className="d-flex flex-column justify-content-center"),
+                
+                dbc.Col(width=2)
+            ], className="align-items-center")
+        ], style={
+            'background': f'linear-gradient(135deg, {colors["primary"]} 0%, {colors["secondary"]} 100%)',
+            'padding': '30px 20px',
+            'marginBottom': '30px',
+            'boxShadow': '0 6px 20px rgba(0,0,0,0.15)',
+            'borderRadius': '0 0 15px 15px',
+            'marginTop': '-25px',
+            'marginLeft': '-25px',
+            'marginRight': '-25px',
+            'animation': 'fadeIn 1s ease-in'
+        })
     ]),
     
-    # Info Box with expandable information
-    html.Div([
-        dbc.Button(
-            [
-                html.I(className="fas fa-info-circle", style={'marginRight': '8px', 'fontSize': '16px'}),
-                "Dashboard Information"
-            ],
-            id="info-toggle",
-            color="info",
-            outline=True,
-            size="sm",
-            style={'marginBottom': '10px', 'borderRadius': '20px'}
-        ),
-        dbc.Collapse(
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5(" About This Dashboard", style={'color': primary_color, 'marginBottom': '15px'}),
-                    html.P([
-                        "This interactive dashboard compares housing trajectory data from:"
-                    ], style={'marginBottom': '10px'}),
-                    html.Ul([
-                        html.P([
-                            html.Strong("Savills Trajectory "), 
-                        ], style={'marginBottom': '8px'}),
-                        html.P([
-                            html.Strong("Core Largesites Baseline "), 
-                        ], style={'marginBottom': '8px'}),
-                    ]),
-                    html.Hr(style={'margin': '15px 0'}),
-                    html.H6("Interactive Features:", style={'color': secondary_color, 'marginBottom': '10px'}),
-                    html.P("• Use the year slider to see data for different years", style={'marginBottom': '5px'}),
-                    html.P("• Click play on the map to see animated changes over time", style={'marginBottom': '5px'}),
-                    html.P("• Search for specific boroughs in the line graph dropdown", style={'marginBottom': '5px'}),
-                    html.P("• Compare trends between the two data sources", style={'marginBottom': '5px'}),
-                    html.Hr(style={'margin': '15px 0'}),
-                    html.P([
-                        html.I(className="fas fa-building", style={'marginRight': '5px', 'color': primary_color}),
-                        html.Small("Data visualisation by the Greater London Authority Housing Team", 
-                                 style={'color': text_light, 'fontStyle': 'italic'})
-                    ], style={'marginBottom': '0', 'textAlign': 'center'})
-                ])
-            ], style={'border': f'1px solid {primary_color}', 'borderRadius': '10px'}),
-            id="info-collapse",
-            is_open=False
-        )
-    ], style={'marginBottom': '20px', 'textAlign': 'center'}),
+    # Control Panel
+    dbc.Card([
+        dbc.CardBody([
+            html.H4("Dashboard Controls", className="mb-4", 
+                   style={'color': colors['primary'], 'fontWeight': '600'}),
+            
+            dbc.Row([
+                # Year Dropdown with   styling
+                dbc.Col([
+                    html.Label("Select Year", className="fw-bold mb-2",
+                              style={'color': colors['text'], 'fontSize': '14px'}),
+                    dcc.Dropdown(
+                        id='year-dropdown',
+                        options=[{'label': year, 'value': year} for year in years],
+                        value=years[-1],
+                        clearable=False,
+                        style={'marginBottom': '15px'}
+                    )
+                ], width=4),
+                
+                # Age Dropdown with   styling
+                dbc.Col([
+                    html.Label("Select Age (ASFR)", className="fw-bold mb-2",
+                              style={'color': colors['text'], 'fontSize': '14px'}),
+                    dcc.Dropdown(
+                        id='age-dropdown',
+                        options=[{'label': f"Age {age}", 'value': age} for age in ages],
+                        value="30",
+                        clearable=False,
+                        style={'marginBottom': '15px'}
+                    )
+                ], width=4),
+                
+                # LAD Dropdown with search
+                dbc.Col([
+                    html.Label("Local Authority", className="fw-bold mb-2",
+                              style={'color': colors['text'], 'fontSize': '14px'}),
+                    dcc.Dropdown(
+                        id='lad-dropdown',
+                        options=[{'label': lad, 'value': lad} for lad in lads],
+                        value="Manchester",
+                        clearable=False,
+                        placeholder="Search Local Authority...",
+                        style={'marginBottom': '15px'}
+                    )
+                ], width=4)
+            ])
+        ])
+    ], className="mb-4 control-panel"),
     
-    # Metric Cards with dynamic year data
+    # Summary Metrics
     dbc.Row([
-        dbc.Col(
+        dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("Number of Houses Added", className="card-title", style={'color': primary_color}),
-                    html.H5(id="year-display-savills", style={'color': '#666', 'fontSize': '14px'}),
-                    html.H2(id="savills-total", className="card-text")
+                    html.Div([
+                        html.H4(id="tfr-title", children="Total Fertility Rate", style={'color': colors['primary'], 'fontWeight': '600'}),
+                        html.H2(id="current-tfr", children="--", 
+                               style={'color': colors['secondary'], 'fontWeight': '700', 'fontSize': '2.5rem'})
+                    ], className="text-center")
                 ])
-            ], style={'borderLeft': f'5px solid {secondary_color}', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'})
-        ),
+            ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
+                                              'borderLeft': f'5px solid {colors["secondary"]}',
+                                              'boxShadow': '0 4px 15px rgba(0,0,0,0.1)'})
+        ], width=4),
         
-        dbc.Col(
+        dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("Number of Houses Added", className="card-title", style={'color': secondary_color}),
-                    html.H5(id="year-display-sites", style={'color': '#666', 'fontSize': '14px'}),
-                    html.H2(id="sites-total", className="card-text")
+                    html.Div([
+                        html.H4(id="comparison-title", children="vs UK Average", style={'color': colors['primary'], 'fontWeight': '600'}),
+                        html.H2(id="tfr-comparison", children="--", 
+                               style={'color': colors['accent'], 'fontWeight': '700', 'fontSize': '2.5rem'})
+                    ], className="text-center")
                 ])
-            ], style={'borderLeft': f'5px solid {primary_color}', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'})
-        ),
+            ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
+                                              'borderLeft': f'5px solid {colors["accent"]}',
+                                              'boxShadow': '0 4px 15px rgba(0,0,0,0.1)'})
+        ], width=4),
+        
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.Div([
+                        html.H4("Replacement Level", style={'color': colors['primary'], 'fontWeight': '600'}),
+                        html.H2("2.1", style={'color': colors['warning'], 'fontWeight': '700', 'fontSize': '2.5rem'}),
+                        html.P(id="replacement-status", children="--", className="text-muted")
+                    ], className="text-center")
+                ])
+            ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
+                                              'borderLeft': f'5px solid {colors["warning"]}',
+                                              'boxShadow': '0 4px 15px rgba(0,0,0,0.1)'})
+        ], width=4)
     ], className="mb-4"),
     
-    # Year Slider for controlling everything - moved above maps
-    html.Div([
-        html.H4("Select Year", style={'color': primary_color, 'marginBottom': 10}),
-        dcc.Slider(
-            id='year-slider',
-            min=2022,
-            max=max_year,
-            value=2027,
-            marks={year: str(year) for year in common_years[::2] if year >= 2022} if common_years else {},
-            step=1,
-            tooltip={"placement": "bottom", "always_visible": True},
-            included=False
+    #   Maps Section
+    dbc.Row([
+        # TFR Map
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5("Total Fertility Rate Map", className="text-center mb-0",
+                           style={'color': colors['primary'], 'fontWeight': '600'})
+                ], style={'backgroundColor': colors['background']}),
+                dbc.CardBody([
+                    dcc.Graph(id='tfr-map', style={'height': '520px'})
+                ], style={'padding': '0'})
+            ], className="graph-container")
+        ], width=6),
+        
+        # ASFR Map 
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0",
+                           style={'color': colors['primary'], 'fontWeight': '600'})
+                ], style={'backgroundColor': colors['background']}),
+                dbc.CardBody([
+                    dcc.Graph(id='asfr-map', style={'height': '520px'})
+                ], style={'padding': '0'})
+            ], className="graph-container")
+        ], width=6)
+    ], className="mb-4"),
+    
+    #   Trend Analysis
+    dbc.Row([
+        # TFR Trend 
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5("TFR Trend Analysis", className="text-center mb-0",
+                           style={'color': colors['primary'], 'fontWeight': '600'})
+                ], style={'backgroundColor': colors['background']}),
+                dbc.CardBody([
+                    dcc.Graph(id='tfr-trend', style={'height': '420px'})
+                ], style={'padding': '0'})
+            ], className="graph-container")
+        ], width=6),
+        
+        # ASFR Trend 
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5("ASFR Trend Analysis", className="text-center mb-0",
+                           style={'color': colors['primary'], 'fontWeight': '600'})
+                ], style={'backgroundColor': colors['background']}),
+                dbc.CardBody([
+                    dcc.Graph(id='asfr-trend', style={'height': '420px'})
+                ], style={'padding': '0'})
+            ], className="graph-container")
+        ], width=6)
+    ], className="mb-4"),
+    
+    # Footer
+    dbc.Row([
+        dbc.Col([
+            html.Hr(style={'borderColor': colors['secondary'], 'marginTop': '40px'}),
+            dbc.Alert([
+                html.H5("About This Dashboard", className="alert-heading",
+                       style={'color': colors['primary'], 'fontWeight': 'bold'}),
+                html.P([
+                         "This dashboard provides analysis of UK fertility rates using the GLA Fertility Estimates. ",
+                            "The code used to produce these estimates is available on ",
+                            html.A(
+                            "GitHub",  # Text that will show as a link
+                        href="https://github.com/Greater-London-Authority/fertility_rate_estimation/tree/main",
+                        target="_blank"  # Opens link in a new tab
+                                   ,style={'color': colors['primary']}),
+                        html.Br(),
+                    html.Strong("TFR (Total Fertility Rate)"), " Total fertility rate (TFR) is a commonly used measure of overall fertility calculated as the sum of all age-specific fertility rates across all reproductive age groups. It represents the average number of children that a woman would have if she were to experience current age-specific fertility rates over the course of her life. For 2023, we estimate the TFR in Inner London to have been 1.16 compared to 1.54 in Outer London, and 1.41 for England as whole.",
+                        html.Br(),
+                    html.Strong("ASFR (Age-Specific Fertility Rate, 15 to 49)"), " measures the number of births per woman within specific age groups. For example, in England, the peak childbearing age is currently 32, with an ASFR of 0.107, meaning 107 babies were born for each 1,000 women aged 32.",
+                    "The UK replacement fertility rate is approximately ", html.Strong("2.1 children per woman"), "."
+                ], className="mb-2", style={'color': colors['primary']}),
+                html.P([
+                    "Use the controls above to explore different years, ages, and local authorities. ",
+                    "Interactive maps maintain their fertility-specific colour schemes. ",
+                    "Compare trends across time and regions with visualisations. Visualisations can be easily downloaded using the camera icon in the top-right corner of each graph."
+                ], className="mb-0", style={'color': colors['primary']})
+            ], color="navy", style={'backgroundColor': 'rgba(46, 139, 87, 0.1)', 
+                                   'borderColor': colors['primary']}, className="mb-3"),
+            
+            html.P([
+                "GLA Fertility Dashboard | Data: ONS | ",
+                html.A("Office for National Statistics", 
+                      href="https://www.ons.gov.uk", 
+                      style={'color': colors['primary'], 'textDecoration': 'none'})
+            ], className="text-center text-muted", style={'fontSize': '14px'})
+        ])
+    ])
+    
+], fluid=True, style={'padding': '25px', 'backgroundColor': colors['background'], 
+                     'minHeight': '100vh'})
+
+# ==========   CALLBACKS (Same Logic,   Styling) ==========
+
+# Update metrics with   formatting
+@app.callback(
+    [Output('current-tfr', 'children'),
+     Output('tfr-comparison', 'children'),
+     Output('replacement-status', 'children')],
+    [Input('year-dropdown', 'value'),
+     Input('lad-dropdown', 'value')]
+)
+def update_metrics(selected_year, selected_lad):
+    try:
+        if selected_lad and selected_year:
+            lad_tfr = tfr_clean[
+                (tfr_clean['year'] == selected_year) & 
+                (tfr_clean['LAD23NM'] == selected_lad)
+            ]['tfr']
+            
+            if not lad_tfr.empty:
+                current_tfr = lad_tfr.iloc[0]
+                tfr_display = f"{current_tfr:.2f}"
+                
+                #   comparison formatting
+                uk_avg = tfr_clean[tfr_clean['year'] == selected_year]['tfr'].mean()
+                diff = current_tfr - uk_avg
+                comparison = f"{diff:+.2f}"
+                
+                #   status indicators
+                if current_tfr >= 2.1:
+                    status = "Above replacement level"
+                elif current_tfr >= 1.8:
+                    status = f"Below by {2.1 - current_tfr:.2f}"
+                else:
+                    status = f"Below by {2.1 - current_tfr:.2f}"
+                    
+                return tfr_display, comparison, status
+        
+        return "Select Data", "N/A", "Choose LAD & Year"
+        
+    except Exception as e:
+        print(f"  metrics error: {e}")
+        return "Error", "Error", "Data Error"
+
+#   TFR map (keeping RdYlBu_r colour scheme)
+@app.callback(
+    Output('tfr-map', 'figure'),
+    [Input('year-dropdown', 'value')]
+)
+def update_tfr_map(selected_year):
+    try:
+        if not selected_year:
+            return go.Figure().add_annotation(text="Please select a year", showarrow=False, 
+                                           font=dict(size=16, color=colors['text']))
+        
+        filtered_tfr = tfr_clean[tfr_clean['year'] == selected_year]
+        
+        if filtered_tfr.empty:
+            return go.Figure().add_annotation(text="No data available for selected year", 
+                                           showarrow=False, font=dict(size=16, color=colors['text']))
+        
+        #   TFR map (KEEPING original fertility colour scheme)
+        fig = px.choropleth_mapbox(
+            filtered_tfr,
+            geojson=filtered_tfr.__geo_interface__,
+            locations='LAD23CD',
+            featureidkey='properties.LAD23CD',
+            color='tfr',
+            hover_name='LAD23NM',
+            hover_data={'tfr': ':.3f', 'LAD23CD': False},
+            color_continuous_scale='RdYlBu_r',  # KEPT: Red=high, Blue=low fertility
+            mapbox_style='carto-positron',
+            zoom=5.3,
+            center={"lat": 54.5, "lon": -2.5},
+            opacity=0.85
         )
-    ], style={'marginBottom': 30, 'padding': '20px', 'backgroundColor': 'white', 'borderRadius': '10px', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'}),
-    
-    # Animated Comparison Map
-    html.H3("Comparison Maps", style={'color': primary_color, 'fontWeight': 'bold', 'textAlign': 'center', 'marginTop': 20}),
-    dcc.Graph(
-        id='animated-map', 
-        figure=fig_dual_animated if fig_dual_animated else go.Figure(), 
-        style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)', 'overflow': 'hidden'},
-        config={'displayModeBar': True}
-    ),
-    
-    # Interactive Line Graphs by Ward
-    html.H3("Interactive Line Graphs by Ward", style={'color': primary_color, 'fontWeight': 'bold', 'textAlign': 'center', 'marginTop': 30}),
-    
-    # Searchable Borough Dropdown
-    html.Div([
-        html.H4("Select Borough/Ward", style={'color': primary_color, 'marginBottom': 10}),
-        dcc.Dropdown(
-            id='ward-dropdown',
-            options=[{'label': ward, 'value': ward} for ward in sorted(ward_names)] if ward_names else [],
-            value=sorted(ward_names)[0] if ward_names else None,
-            placeholder="Search and select a borough/ward...",
-            searchable=True,
-            clearable=False,
-            style={'fontSize': '16px'}
+        
+        fig.update_layout(
+            title=dict(
+                text=f"Total Fertility Rate ({selected_year})",
+                x=0.5,
+                font=dict(size=18, color=colors['primary'], family="Arial Black")
+            ),
+            margin={"r":5,"t":60,"l":5,"b":5},
+            coloraxis_colorbar=dict(
+                title="TFR",
+                title_font=dict(size=14, color=colors['primary']),
+                len=0.8,
+                thickness=20
+            )
         )
-    ], style={'marginBottom': 20, 'padding': '20px', 'backgroundColor': 'white', 'borderRadius': '10px', 'boxShadow': '3px 3px 15px rgba(0,0,0,0.1)'}),
-    
-    dcc.Graph(
-        id='line-graphs',
-        figure=fig_line_graphs if fig_line_graphs else go.Figure(), 
-        style={'height': '650px', 'border': f'3px solid {secondary_color}', 'borderRadius': '10px', 'boxShadow': '5px 5px 15px rgba(0,0,0,0.2)', 'overflow': 'hidden'},
-        config={'displayModeBar': True}
-    ),
-    
-    html.Div([
-        html.P("This is an automated report produced by the Greater London Authority (GLA)", 
-               style={'margin': '10px 0', 'fontSize': '14px', 'color': text_light}),
-        html.P([
-            "If you require further information, please email ",
-            html.A("Sebastian.Heslin-Rees@london.gov.uk", 
-                   href="mailto:Sebastian.Heslin-Rees@london.gov.uk",
-                   style={'color': primary_color, 'textDecoration': 'underline'})
-        ], style={'margin': '10px 0', 'fontSize': '14px', 'color': text_light})
-    ], className="footer", style={'textAlign': 'center', 'marginTop': 50, 'padding': '20px', 'backgroundColor': light_blue, 'borderTop': f'2px solid {secondary_color}', 'borderRadius': '5px'})
-    
-    ], fluid=True, style={'backgroundColor': bg_color, 'padding': '20px'})
+        
+        return fig
+        
+    except Exception as e:
+        print(f"  TFR map error: {e}")
+        return go.Figure().add_annotation(text=f"Map Error: {str(e)[:50]}...", 
+                                       showarrow=False, font=dict(size=14, color='red'))
 
-# Authentication callbacks
+#   ASFR map (keeping Plasma colour scheme)
 @app.callback(
-    Output('page-content', 'children'),
-    [Input('session-store', 'data')]
+    Output('asfr-map', 'figure'),
+    [Input('year-dropdown', 'value'),
+     Input('age-dropdown', 'value')]
 )
-def display_page(session_data):
-    """Display login page or main dashboard based on authentication"""
-    if session_data and session_data.get('authenticated'):
-        return get_main_dashboard()
-    else:
-        return create_login_layout()
+def update_asfr_map(selected_year, selected_age):
+    try:
+        if not selected_year or not selected_age:
+            return go.Figure().add_annotation(text="Please select year and age", 
+                                           showarrow=False, font=dict(size=16, color=colors['text']))
+        
+        filtered_asfr = asfr_clean[
+            (asfr_clean['year'] == selected_year) &
+            (asfr_clean['age'] == selected_age)
+        ]
+        
+        if filtered_asfr.empty:
+            return go.Figure().add_annotation(text="No data available for selection", 
+                                           showarrow=False, font=dict(size=16, color=colors['text']))
+        
+        #   ASFR map (KEEPING original fertility colour scheme)
+        fig = px.choropleth_mapbox(
+            filtered_asfr,
+            geojson=filtered_asfr.__geo_interface__,
+            locations='LAD23CD',
+            featureidkey='properties.LAD23CD',
+            color='fertility_rate',
+            hover_name='LAD23NM',
+            hover_data={'fertility_rate': ':.4f', 'LAD23CD': False},
+            color_continuous_scale='Plasma',  # KEPT: Original ASFR colour scheme
+            mapbox_style='carto-positron',
+            zoom=5.3,
+            center={"lat": 54.5, "lon": -2.5},
+            opacity=0.85
+        )
+        
+        fig.update_layout(
+            title=dict(
+                text=f"ASFR Age {selected_age} ({selected_year})",
+                x=0.5,
+                font=dict(size=18, color=colors['primary'], family="Arial Black")
+            ),
+            margin={"r":5,"t":60,"l":5,"b":5},
+            coloraxis_colorbar=dict(
+                title=f"ASFR (Age {selected_age})",
+                title_font=dict(size=14, color=colors['primary']),
+                len=0.8,
+                thickness=20
+            )
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"  ASFR map error: {e}")
+        return go.Figure().add_annotation(text=f"Map Error: {str(e)[:50]}...", 
+                                       showarrow=False, font=dict(size=14, color='red'))
 
+#   TFR trend with   styling
 @app.callback(
-    [Output('session-store', 'data'),
-     Output('auth-output', 'children')],
-    [Input('login-button', 'n_clicks')],
-    [State('email-input', 'value'),
-     State('password-input', 'value')]
+    Output('tfr-trend', 'figure'),
+    [Input('lad-dropdown', 'value')]
 )
-def handle_login(n_clicks, email, password):
-    """Handle login authentication"""
-    if n_clicks > 0:
-        if email and password:
-            if check_auth(email, password):
-                # Successful login
-                user_info = get_user_info(email)
-                return {
-                    'authenticated': True,
-                    'email': email,
-                    'name': user_info.get('name', email),
-                    'role': user_info.get('role', 'user')
-                }, ""
-            else:
-                # Failed login
-                return dash.no_update, html.Div([
-                    html.P("Invalid email or password", style={'color': 'red', 'fontWeight': 'bold'}),
-                    html.P("Please check your credentials and try again.", style={'color': '#666', 'fontSize': '14px'})
-                ])
-        else:
-            # Missing fields
-            return dash.no_update, html.Div([
-                html.P("Please enter both email and password", style={'color': 'red', 'fontWeight': 'bold'})
-            ])
-    return dash.no_update, ""
+def update_tfr_trend(selected_lad):
+    try:
+        if not selected_lad:
+            return go.Figure().add_annotation(text="Please select a Local Authority", 
+                                           showarrow=False, font=dict(size=16, color=colors['text']))
+        
+        lad_data = tfr_clean[tfr_clean['LAD23NM'] == selected_lad].copy()
+        
+        if lad_data.empty:
+            return go.Figure().add_annotation(text=f"No TFR data available for {selected_lad}", 
+                                           showarrow=False, font=dict(size=14, color=colors['text']))
+        
+        # Convert for plotting
+        lad_data['year_int'] = lad_data['year'].astype(int)
+        lad_data = lad_data.sort_values('year_int')
+        
+        fig = go.Figure()
+        
+        #   LAD trend line
+        fig.add_trace(
+            go.Scatter(
+                x=lad_data['year_int'],
+                y=lad_data['tfr'],
+                mode='lines+markers',
+                name=selected_lad,
+                line=dict(color=colors['primary'], width=4),
+                marker=dict(size=8, color=colors['secondary'], 
+                          line=dict(color='white', width=2))
+            )
+        )
+        
+        #   UK average
+        uk_avg_by_year = tfr_clean.groupby('year')['tfr'].mean().reset_index()
+        uk_avg_by_year['year_int'] = uk_avg_by_year['year'].astype(int)
+        uk_avg_by_year = uk_avg_by_year.sort_values('year_int')
+        
+        fig.add_trace(
+            go.Scatter(
+                x=uk_avg_by_year['year_int'],
+                y=uk_avg_by_year['tfr'],
+                mode='lines',
+                name='UK Average',
+                line=dict(color='gray', width=3, dash='dash'),
+                opacity=0.8
+            )
+        )
+        
+        #   replacement level line
+        fig.add_hline(y=2.1, line_dash="dot", line_color=colors['warning'], line_width=3,
+                     annotation_text="UK Replacement Level (2.1)", 
+                     annotation_font=dict(color=colors['warning'], size=12))
+        
+        fig.update_layout(
+            title=dict(
+                text=f"TFR Trend Analysis: {selected_lad}",
+                x=0.5,
+                font=dict(size=16, color=colors['primary'], family="Arial Black")
+            ),
+            xaxis_title="Year",
+            yaxis_title="Total Fertility Rate",
+            height=400,
+            hovermode='x unified',
+            plot_bgcolor='rgba(248,249,250,0.8)',
+            paper_bgcolor='white'
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"  TFR trend error: {e}")
+        return go.Figure().add_annotation(text=f"Trend Error: {str(e)[:50]}...", 
+                                       showarrow=False, font=dict(size=14, color='red'))
 
-
-
-
-
-# @app.callback(
-# Callback to update metric cards and year display based on selected year
+#   ASFR trend with styling
 @app.callback(
-    [Output('savills-total', 'children'),
-     Output('sites-total', 'children'),
-     Output('year-display-savills', 'children'),
-     Output('year-display-sites', 'children')],
-    [Input('year-slider', 'value')]
+    Output('asfr-trend', 'figure'),
+    [Input('lad-dropdown', 'value'),
+     Input('age-dropdown', 'value')]
 )
-def update_metrics(selected_year):
-    year_str = str(selected_year)
-    
-    # Calculate totals for selected year
-    savills_total = 0
-    sites_total = 0
-    
-    if year_str in merged_ward_savills_gdf.columns:
-        savills_total = merged_ward_savills_gdf[year_str].sum()
-    
-    if year_str in merged_Core_Largesites_gdf.columns:
-        sites_total = merged_Core_Largesites_gdf[year_str].sum()
-    
-    year_display = f"Year {selected_year}"
-    
-    return f"{int(savills_total):,}", f"{int(sites_total):,}", year_display, year_display
+def update_asfr_trend(selected_lad, selected_age):
+    try:
+        if not selected_lad or not selected_age:
+            return go.Figure().add_annotation(text="Please select LAD and age", 
+                                           showarrow=False, font=dict(size=16, color=colors['text']))
+        
+        lad_age_data = asfr_clean[
+            (asfr_clean['LAD23NM'] == selected_lad) &
+            (asfr_clean['age'] == selected_age)
+        ].copy()
+        
+        if lad_age_data.empty:
+            return go.Figure().add_annotation(
+                text=f"No ASFR data for {selected_lad}, Age {selected_age}", 
+                showarrow=False, font=dict(size=14, color=colors['text'])
+            )
+        
+        # Convert for plotting
+        lad_age_data['year_int'] = lad_age_data['year'].astype(int)
+        lad_age_data = lad_age_data.sort_values('year_int')
+        
+        fig = go.Figure()
+        
+        #   LAD ASFR trend
+        fig.add_trace(
+            go.Scatter(
+                x=lad_age_data['year_int'],
+                y=lad_age_data['fertility_rate'],
+                mode='lines+markers',
+                name=f"{selected_lad} (Age {selected_age})",
+                line=dict(color=colors['secondary'], width=4),
+                marker=dict(size=8, color=colors['accent'], 
+                          line=dict(color='white', width=2))
+            )
+        )
+        
+        #   UK average for age
+        uk_avg_age = asfr_clean[asfr_clean['age'] == selected_age].groupby('year')['fertility_rate'].mean().reset_index()
+        uk_avg_age['year_int'] = uk_avg_age['year'].astype(int)
+        uk_avg_age = uk_avg_age.sort_values('year_int')
+        
+        fig.add_trace(
+            go.Scatter(
+                x=uk_avg_age['year_int'],
+                y=uk_avg_age['fertility_rate'],
+                mode='lines',
+                name='UK Average',
+                line=dict(color='gray', width=3, dash='dash'),
+                opacity=0.8
+            )
+        )
+        
+        fig.update_layout(
+            title=dict(
+                text=f"ASFR Trend Analysis (Age {selected_age}): {selected_lad}",
+                x=0.5,
+                font=dict(size=16, color=colors['primary'], family="Arial Black")
+            ),
+            xaxis_title="Year",
+            yaxis_title="Age-Specific Fertility Rate",
+            height=400,
+            hovermode='x unified',
+            plot_bgcolor='rgba(248,249,250,0.8)',
+            paper_bgcolor='white'
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"  ASFR trend error: {e}")
+        return go.Figure().add_annotation(text=f"Trend Error: {str(e)[:50]}...", 
+                                       showarrow=False, font=dict(size=14, color='red'))
 
-# Callback to update line graph based on selected ward
-@app.callback(
-    Output('line-graphs', 'figure'),
-    [Input('ward-dropdown', 'value')]
-)
-def update_line_graph(selected_ward):
-    if selected_ward:
-        return create_line_graph_for_ward(selected_ward)
-    else:
-        return go.Figure()
 
-# Callback to toggle info box
-@app.callback(
-    Output("info-collapse", "is_open"),
-    [Input("info-toggle", "n_clicks")],
-    [State("info-collapse", "is_open")],
-)
-def toggle_info_box(n_clicks, is_open):
-    if n_clicks:
-        return not is_open
-    return is_open
 
-# For gunicorn - FIXED: Only one if __name__ == "__main__": block
-server = app.server
-
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8050, debug=True)
-
+if __name__ == '__main__':
+    print(f"Starting UK Fertility Dashboard on port {PORT}...")
+    app.run(debug=True, port=PORT)

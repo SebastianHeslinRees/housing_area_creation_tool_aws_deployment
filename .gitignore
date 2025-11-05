@@ -4,6 +4,11 @@ AWSCLIV2.pkg
 # Ignore ZIP packages (we'll push source files instead)
 *.zip
 
+# Ignore large GeoJSON data files (stored in S3)
+*.geojson
+asfr_merged.geojson
+tfr_merged.geojson
+
 # Ignore Docker and AWS-specific files not needed for App Runner
 Dockerfile
 task-definition.json

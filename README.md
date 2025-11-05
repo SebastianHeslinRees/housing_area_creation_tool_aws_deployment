@@ -6,11 +6,10 @@ This repository now hosts the UK Fertility Rate Dashboard — an interactive Das
 - Interactive choropleth maps for TFR and ASFR
 - Metric summary cards (TFR, comparison vs UK average, replacement level)
 - ASFR trend charts by Local Authority and age
-- Professional GLA-inspired styling and loading overlay
 
 ## Data files
-- `smooth_tfr_lad_agg_cy.csv` — TFR per LAD and year
-- `smooth_asfr_lad_agg_cy.csv` — ASFR per LAD, year and age
+- `tfr_merged.geojson` — TFR per LAD and year with geometry
+- `asfr_merged.geojson` — ASFR per LAD, year and age with geometry
 
 ## Local Development
 1. Create and activate a Python environment (recommended):
@@ -44,7 +43,7 @@ gunicorn --bind 0.0.0.0:8022 --workers 1 --timeout 120 app:server
 Ensure App Runner uses the provided `requirements.txt` so all dependencies are installed during build.
 
 ## Troubleshooting
-- If maps or metrics show `No data`, check that the CSV files above contain the expected columns (`year`, `LAD23NM`, `LAD23CD`, `fertility_rate`, `age`).
+- If maps or metrics show `No data`, check that the files above contain the expected columns (`year`, `LAD23NM`, `LAD23CD`, `fertility_rate`, `age`).
 - For deployment issues, review App Runner logs and ensure the `PORT` environment variable matches `8022`.
 
 ## Notes

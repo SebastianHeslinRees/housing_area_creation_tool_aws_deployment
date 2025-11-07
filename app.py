@@ -48,12 +48,13 @@ def download_from_s3_if_needed(filename, bucket=S3_BUCKET, prefix=S3_PREFIX):
 print("Loading fertility and geometry data...")
 
 # Download from S3 if needed (for AWS deployment)
-asfr_file = download_from_s3_if_needed('asfr_merged.geojson')
-tfr_file = download_from_s3_if_needed('tfr_merged.geojson')
+asfr_file_reduced = download_from_s3_if_needed('asfr_merged_reduced.geojson')
+tfr_file_reduced = download_from_s3_if_needed('tfr_merged_reduced.geojson')
 
-# Read GeoJSON files
-asfr_merged = gpd.read_file(asfr_file)
-tfr_merged = gpd.read_file(tfr_file)
+# Read reduced GeoJSON files
+asfr_merged = gpd.read_file(asfr_file_reduced)
+tfr_merged = gpd.read_file(tfr_file_reduced)
+
 
 # Clean TFR data
 tfr_clean = tfr_merged[['LAD23CD', 'LAD23NM', 'geometry', 'year', 'tfr']].copy()
@@ -95,8 +96,9 @@ app.index_string = '''
     <head>
         {%metas%}
         <title>{%title%}</title>
-        <link rel="icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png" type="image/png">
-        {%favicon%}
+        <link rel="icon" type="image/png" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
+        <link rel="shortcut icon" type="image/png" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
+        <link rel="apple-touch-icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
         {%css%}
         <style>
             /*   Loading Spinner Overlay */

@@ -38,22 +38,36 @@ def download_from_s3_if_needed(filename, bucket=S3_BUCKET, prefix=S3_PREFIX):
         print(f"⬇ Downloading s3://{bucket}/{s3_key}...")
         s3 = boto3.client('s3', region_name=S3_REGION)
         s3.download_file(bucket, s3_key, filename)
-        print(f"✓ Downloaded {filename} successfully")
+        file_size_mb = os.path.getsize(filename) / (1024 * 1024)
+        print(f"✓ Downloaded {filename} successfully ({file_size_mb:.1f} MB)")
         return filename
     except Exception as e:
         print(f"❌ Error downloading {filename} from S3: {e}")
+        import traceback
+        traceback.print_exc()
         raise
 
 # ----------------- Load Data -----------------
 print("Loading fertility and geometry data...")
 
-# Download from S3 if needed (for AWS deployment)
-asfr_file_reduced = download_from_s3_if_needed('asfr_merged_reduced.geojson')
-tfr_file_reduced = download_from_s3_if_needed('tfr_merged_reduced.geojson')
+try:
+    # Download from S3 if needed (for AWS deployment)
+    asfr_file_reduced = download_from_s3_if_needed('asfr_merged_reduced.geojson')
+    tfr_file_reduced = download_from_s3_if_needed('tfr_merged_reduced.geojson')
 
-# Read reduced GeoJSON files
-asfr_merged = gpd.read_file(asfr_file_reduced)
-tfr_merged = gpd.read_file(tfr_file_reduced)
+    print(f"Reading ASFR file: {asfr_file_reduced}")
+    asfr_merged = gpd.read_file(asfr_file_reduced)
+    print(f"✓ Loaded ASFR data: {len(asfr_merged)} features")
+    
+    print(f"Reading TFR file: {tfr_file_reduced}")
+    tfr_merged = gpd.read_file(tfr_file_reduced)
+    print(f"✓ Loaded TFR data: {len(tfr_merged)} features")
+    
+except Exception as e:
+    print(f"❌ FATAL ERROR loading data: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
 
 # Clean TFR data

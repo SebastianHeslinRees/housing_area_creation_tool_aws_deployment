@@ -347,7 +347,7 @@ app.layout = dbc.Container([
                                'textShadow': '2px 2px 4px rgba(0,0,0,0.3)',
                                'letterSpacing': '-0.5px'
                            }),
-                    html.H5("Comprehensive Analysis of Total & Age-Specific Fertility Rates (1993-2023)",
+                    html.H5("Analysis of Total & Age-Specific Fertility Rates (1993-2023)",
                            className="text-center mb-0",
                            style={
                                'fontWeight': '300', 
@@ -404,16 +404,16 @@ app.layout = dbc.Container([
                     )
                 ], width=4),
                 
-                # LAD Dropdown with search
+                # LAD Dropdown with search - MULTI-SELECT
                 dbc.Col([
-                    html.Label("Local Authority", className="fw-bold mb-2",
+                    html.Label("Local Authorities (Select Multiple)", className="fw-bold mb-2",
                               style={'color': colors['text'], 'fontSize': '14px'}),
                     dcc.Dropdown(
                         id='lad-dropdown',
                         options=[{'label': lad, 'value': lad} for lad in lads],
-                        value="Manchester",
-                        clearable=False,
-                        placeholder="Search Local Authority...",
+                        value=["Manchester"],
+                        multi=True,
+                        placeholder="Search Local Authorities...",
                         style={'marginBottom': '15px'}
                     )
                 ], width=4)
@@ -429,7 +429,8 @@ app.layout = dbc.Container([
                     html.Div([
                         html.H4(id="tfr-title", children="Total Fertility Rate", style={'color': colors['primary'], 'fontWeight': '600'}),
                         html.H2(id="current-tfr", children="--", 
-                               style={'color': colors['secondary'], 'fontWeight': '700', 'fontSize': '2.5rem'})
+                               style={'color': colors['secondary'], 'fontWeight': '700', 'fontSize': '2.5rem'}),
+                        html.P("Based on first selected Local Authority", className="text-muted")
                     ], className="text-center")
                 ])
             ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
@@ -443,7 +444,8 @@ app.layout = dbc.Container([
                     html.Div([
                         html.H4(id="comparison-title", children="vs UK Average", style={'color': colors['primary'], 'fontWeight': '600'}),
                         html.H2(id="tfr-comparison", children="--", 
-                               style={'color': colors['accent'], 'fontWeight': '700', 'fontSize': '2.5rem'})
+                               style={'color': colors['accent'], 'fontWeight': '700', 'fontSize': '2.5rem'}),
+                        html.P("Based on first selected Local Authority", className="text-muted")
                     ], className="text-center")
                 ])
             ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
@@ -554,9 +556,15 @@ app.layout = dbc.Container([
                                    'borderColor': colors['primary']}, className="mb-3"),
             
             html.P([
-                "GLA Fertility Dashboard | Data: ONS | ",
+                "GLA Fertility Dashboard | Data: ",
+                html.A("GLA Fertility Rate Output", 
+                      href="https://data.london.gov.uk/dataset/age-specific-fertility-rates-vd4q4/", 
+                      target="_blank",
+                      style={'color': colors['primary'], 'textDecoration': 'none'}),
+                " | ONS | ",
                 html.A("Office for National Statistics", 
                       href="https://www.ons.gov.uk", 
+                      target="_blank",
                       style={'color': colors['primary'], 'textDecoration': 'none'})
             ], className="text-center text-muted", style={'fontSize': '14px'})
         ])
@@ -575,9 +583,12 @@ app.layout = dbc.Container([
     [Input('year-dropdown', 'value'),
      Input('lad-dropdown', 'value')]
 )
-def update_metrics(selected_year, selected_lad):
+def update_metrics(selected_year, selected_lads):
     try:
-        if selected_lad and selected_year:
+        if selected_lads and selected_year and len(selected_lads) > 0:
+            # Use first selected LAD for metrics
+            selected_lad = selected_lads[0] if isinstance(selected_lads, list) else selected_lads
+            
             lad_tfr = tfr_clean[
                 (tfr_clean['year'] == selected_year) & 
                 (tfr_clean['LAD23NM'] == selected_lad)
@@ -722,41 +733,41 @@ def update_asfr_map(selected_year, selected_age):
         return go.Figure().add_annotation(text=f"Map Error: {str(e)[:50]}...", 
                                        showarrow=False, font=dict(size=14, color='red'))
 
-#   TFR trend with   styling
+#   TFR trend with   styling - MULTI-LA SUPPORT
 @app.callback(
     Output('tfr-trend', 'figure'),
     [Input('lad-dropdown', 'value')]
 )
-def update_tfr_trend(selected_lad):
+def update_tfr_trend(selected_lads):
     try:
-        if not selected_lad:
-            return go.Figure().add_annotation(text="Please select a Local Authority", 
+        if not selected_lads or len(selected_lads) == 0:
+            return go.Figure().add_annotation(text="Please select at least one Local Authority", 
                                            showarrow=False, font=dict(size=16, color=colors['text']))
-        
-        lad_data = tfr_clean[tfr_clean['LAD23NM'] == selected_lad].copy()
-        
-        if lad_data.empty:
-            return go.Figure().add_annotation(text=f"No TFR data available for {selected_lad}", 
-                                           showarrow=False, font=dict(size=14, color=colors['text']))
-        
-        # Convert for plotting
-        lad_data['year_int'] = lad_data['year'].astype(int)
-        lad_data = lad_data.sort_values('year_int')
         
         fig = go.Figure()
         
-        #   LAD trend line
-        fig.add_trace(
-            go.Scatter(
-                x=lad_data['year_int'],
-                y=lad_data['tfr'],
-                mode='lines+markers',
-                name=selected_lad,
-                line=dict(color=colors['primary'], width=4),
-                marker=dict(size=8, color=colors['secondary'], 
-                          line=dict(color='white', width=2))
-            )
-        )
+        # Color palette for multiple LADs
+        color_palette = ['#1e3a8a', '#ea580c', '#3b82f6', '#10b981', '#f59e0b', 
+                         '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444', '#14b8a6']
+        
+        # Add trace for each selected LAD
+        for idx, lad in enumerate(selected_lads):
+            lad_data = tfr_clean[tfr_clean['LAD23NM'] == lad].copy()
+            
+            if not lad_data.empty:
+                lad_data['year_int'] = lad_data['year'].astype(int)
+                lad_data = lad_data.sort_values('year_int')
+                
+                fig.add_trace(
+                    go.Scatter(
+                        x=lad_data['year_int'],
+                        y=lad_data['tfr'],
+                        mode='lines+markers',
+                        name=lad,
+                        line=dict(color=color_palette[idx % len(color_palette)], width=3),
+                        marker=dict(size=6, line=dict(color='white', width=1))
+                    )
+                )
         
         #   UK average
         uk_avg_by_year = tfr_clean.groupby('year')['tfr'].mean().reset_index()
@@ -779,9 +790,13 @@ def update_tfr_trend(selected_lad):
                      annotation_text="UK Replacement Level (2.1)", 
                      annotation_font=dict(color=colors['warning'], size=12))
         
+        title_text = f"TFR Trend Analysis: {', '.join(selected_lads[:3])}"
+        if len(selected_lads) > 3:
+            title_text += f" (+{len(selected_lads)-3} more)"
+        
         fig.update_layout(
             title=dict(
-                text=f"TFR Trend Analysis: {selected_lad}",
+                text=title_text,
                 x=0.5,
                 font=dict(size=16, color=colors['primary'], family="Arial Black")
             ),
@@ -790,7 +805,16 @@ def update_tfr_trend(selected_lad):
             height=400,
             hovermode='x unified',
             plot_bgcolor='rgba(248,249,250,0.8)',
-            paper_bgcolor='white'
+            paper_bgcolor='white',
+            showlegend=True,
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor="rgba(255,255,255,0.8)"
+            )
         )
         
         return fig
@@ -800,56 +824,54 @@ def update_tfr_trend(selected_lad):
         return go.Figure().add_annotation(text=f"Trend Error: {str(e)[:50]}...", 
                                        showarrow=False, font=dict(size=14, color='red'))
 
-#   ASFR trend with styling
+#   ASFR trend with styling - SHOWS AGE ON X-AXIS
 @app.callback(
     Output('asfr-trend', 'figure'),
     [Input('lad-dropdown', 'value'),
-     Input('age-dropdown', 'value')]
+     Input('year-dropdown', 'value')]
 )
-def update_asfr_trend(selected_lad, selected_age):
+def update_asfr_trend(selected_lads, selected_year):
     try:
-        if not selected_lad or not selected_age:
-            return go.Figure().add_annotation(text="Please select LAD and age", 
+        if not selected_lads or len(selected_lads) == 0 or not selected_year:
+            return go.Figure().add_annotation(text="Please select at least one LAD and a year", 
                                            showarrow=False, font=dict(size=16, color=colors['text']))
-        
-        lad_age_data = asfr_clean[
-            (asfr_clean['LAD23NM'] == selected_lad) &
-            (asfr_clean['age'] == selected_age)
-        ].copy()
-        
-        if lad_age_data.empty:
-            return go.Figure().add_annotation(
-                text=f"No ASFR data for {selected_lad}, Age {selected_age}", 
-                showarrow=False, font=dict(size=14, color=colors['text'])
-            )
-        
-        # Convert for plotting
-        lad_age_data['year_int'] = lad_age_data['year'].astype(int)
-        lad_age_data = lad_age_data.sort_values('year_int')
         
         fig = go.Figure()
         
-        #   LAD ASFR trend
+        # Color palette for multiple LADs
+        color_palette = ['#ea580c', '#1e3a8a', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
+        
+        # Add trace for each selected LAD
+        for idx, lad in enumerate(selected_lads):
+            lad_year_data = asfr_clean[
+                (asfr_clean['LAD23NM'] == lad) &
+                (asfr_clean['year'] == selected_year)
+            ].copy()
+            
+            if not lad_year_data.empty:
+                # Convert age to int for plotting
+                lad_year_data['age_int'] = lad_year_data['age'].astype(int)
+                lad_year_data = lad_year_data.sort_values('age_int')
+                
+                # LAD ASFR by age - NO MARKERS (lines only)
+                fig.add_trace(
+                    go.Scatter(
+                        x=lad_year_data['age_int'],
+                        y=lad_year_data['fertility_rate'],
+                        mode='lines',  # Changed from 'lines+markers' to 'lines'
+                        name=lad,
+                        line=dict(color=color_palette[idx % len(color_palette)], width=3)
+                    )
+                )
+        
+        # UK average by age for selected year
+        uk_avg_age = asfr_clean[asfr_clean['year'] == selected_year].groupby('age')['fertility_rate'].mean().reset_index()
+        uk_avg_age['age_int'] = uk_avg_age['age'].astype(int)
+        uk_avg_age = uk_avg_age.sort_values('age_int')
+        
         fig.add_trace(
             go.Scatter(
-                x=lad_age_data['year_int'],
-                y=lad_age_data['fertility_rate'],
-                mode='lines+markers',
-                name=f"{selected_lad} (Age {selected_age})",
-                line=dict(color=colors['secondary'], width=4),
-                marker=dict(size=8, color=colors['accent'], 
-                          line=dict(color='white', width=2))
-            )
-        )
-        
-        #   UK average for age
-        uk_avg_age = asfr_clean[asfr_clean['age'] == selected_age].groupby('year')['fertility_rate'].mean().reset_index()
-        uk_avg_age['year_int'] = uk_avg_age['year'].astype(int)
-        uk_avg_age = uk_avg_age.sort_values('year_int')
-        
-        fig.add_trace(
-            go.Scatter(
-                x=uk_avg_age['year_int'],
+                x=uk_avg_age['age_int'],
                 y=uk_avg_age['fertility_rate'],
                 mode='lines',
                 name='UK Average',
@@ -858,18 +880,37 @@ def update_asfr_trend(selected_lad, selected_age):
             )
         )
         
+        title_text = f"ASFR by Age ({selected_year}): {', '.join(selected_lads[:3])}"
+        if len(selected_lads) > 3:
+            title_text += f" (+{len(selected_lads)-3} more)"
+        
         fig.update_layout(
             title=dict(
-                text=f"ASFR Trend Analysis (Age {selected_age}): {selected_lad}",
+                text=title_text,
                 x=0.5,
                 font=dict(size=16, color=colors['primary'], family="Arial Black")
             ),
-            xaxis_title="Year",
+            xaxis_title="Age",
             yaxis_title="Age-Specific Fertility Rate",
+            xaxis=dict(
+                tickmode='linear',
+                tick0=15,
+                dtick=5,
+                range=[14, 50]
+            ),
             height=400,
             hovermode='x unified',
             plot_bgcolor='rgba(248,249,250,0.8)',
-            paper_bgcolor='white'
+            paper_bgcolor='white',
+            showlegend=True,
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor="rgba(255,255,255,0.8)"
+            )
         )
         
         return fig

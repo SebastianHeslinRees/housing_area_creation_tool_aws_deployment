@@ -81,14 +81,14 @@ def download_from_s3_if_needed(filename, bucket=S3_BUCKET, prefix=S3_PREFIX):
     try:
         import boto3
         s3_key = f"{prefix}{filename}"
-        print(f"⬇ Downloading s3://{bucket}/{s3_key}...")
+        print(f" Downloading s3://{bucket}/{s3_key}...")
         s3 = boto3.client('s3', region_name=S3_REGION)
         s3.download_file(bucket, s3_key, filename)
         file_size_mb = os.path.getsize(filename) / (1024 * 1024)
         print(f"✓ Downloaded {filename} successfully ({file_size_mb:.1f} MB)")
         return filename
     except Exception as e:
-        print(f"❌ Error downloading {filename} from S3: {e}")
+        print(f" Error downloading {filename} from S3: {e}")
         import traceback
         traceback.print_exc()
         raise
@@ -110,7 +110,7 @@ try:
     print(f"✓ Loaded TFR data: {len(tfr_merged)} features")
     
 except Exception as e:
-    print(f"❌ FATAL ERROR loading data: {e}")
+    print(f" FATAL ERROR loading data: {e}")
     import traceback
     traceback.print_exc()
     raise
@@ -971,7 +971,7 @@ app.clientside_callback(
     [Input('year-dropdown', 'value')]
 )
 
-# Clientside callback 4: Dark Mode Toggle - Updates button text and store
+# Clientside callback 4: Dark Mode Toggle, Updates button text and store
 app.clientside_callback(
     """
     function(n_clicks) {

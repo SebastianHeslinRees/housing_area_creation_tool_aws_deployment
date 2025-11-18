@@ -25,13 +25,20 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Jupyter Notebook checkpoints (can be huge!)
+# Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
 # Backup files
 *_backup.py
 app_backup.py
+
+# Development/deployment documentation (keep local only)
+integration_guide.py
+oauth_config.py
+test_auth.py
+auth.py
+DEPLOYMENT_GUIDE.md
 
 # Environment files
 .env

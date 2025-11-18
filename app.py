@@ -1,4 +1,4 @@
-# FERTILITY DASHBOARD -     Version
+# FERTILITY DASHBOARD 
 """UK Fertility Rate Dashboard - Dash app entrypoint
 
 This is the application entrypoint used for local development and production
@@ -25,7 +25,53 @@ S3_BUCKET = os.environ.get('S3_BUCKET', 'dpa-population-projection-data')
 S3_PREFIX = os.environ.get('S3_PREFIX', 'dpa-apps/')
 S3_REGION = os.environ.get('AWS_REGION', 'eu-west-2')
 
-# ----------------- Data Loading Functions -----------------
+# ----------------- CSS Colour Parser -----------------
+def parse_css_colours(css_file='assets/styles.css'):
+    """Parse CSS variables from stylesheet to avoid duplication"""
+    colours = {}
+    chart_colours = []
+    chart_dark_colours = []
+    
+    try:
+        with open(css_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                # Parse --chart-dark-color-* variables first (more specific)
+                if line.startswith('--chart-dark-color-') and ':' in line:
+                    parts = line.split(':')
+                    value = parts[1].split(';')[0].strip()
+                    chart_dark_colours.append(value)
+                # Parse --chart-color-* variables (but not dark ones)
+                elif line.startswith('--chart-color-') and ':' in line:
+                    parts = line.split(':')
+                    value = parts[1].split(';')[0].strip()
+                    chart_colours.append(value)
+                # Parse --color-* variables
+                elif line.startswith('--color-') and ':' in line:
+                    parts = line.split(':')
+                    key = parts[0].replace('--color-', '').replace('-', '_')
+                    value = parts[1].split(';')[0].strip()
+                    colours[key] = value
+    except FileNotFoundError:
+        print(f"⚠ Warning: {css_file} not found, using fallback colours")
+    
+    # Apply fallbacks if parsing didn't find values
+    if not colours:
+        colours = {
+            'primary': '#1e3a8a', 'secondary': '#ea580c', 'accent': '#3b82f6',
+            'background': '#F8F9FA', 'text': '#2C3E50', 'warning': '#f59e0b',
+            'card_bg': '#ffffff'
+        }
+    if not chart_colours:
+        chart_colours = ['#1e3a8a', '#ea580c', '#3b82f6', '#10b981', '#f59e0b',
+                        '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444', '#14b8a6']
+    if not chart_dark_colours:
+        chart_dark_colours = ['#93c5fd', '#fbbf24', '#60a5fa', '#34d399', '#fbbf24',
+                             '#a78bfa', '#f472b6', '#22d3ee', '#f87171', '#2dd4bf']
+    
+    return colours, chart_colours, chart_dark_colours
+
+# ----------------- Data Loading Functions for Geojson in S3 -----------------
 def download_from_s3_if_needed(filename, bucket=S3_BUCKET, prefix=S3_PREFIX):
     """Download file from S3 if not present locally (for AWS deployment)"""
     if os.path.exists(filename):
@@ -114,142 +160,6 @@ app.index_string = '''
         <link rel="shortcut icon" type="image/png" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
         <link rel="apple-touch-icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
         {%css%}
-        <style>
-            /*   Loading Spinner Overlay */
-            .loading-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                transition: opacity 0.5s ease-out;
-            }
-            
-            /*   Spinner Animation */
-            .spinner {
-                width: 80px;
-                height: 80px;
-                border: 6px solid rgba(255, 255, 255, 0.3);
-                border-top: 6px solid white;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            }
-            
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            
-            /*   Loading Text */
-            .loading-text {
-                color: white;
-                font-family: "Arial", sans-serif;
-                font-size: 28px;
-                font-weight: bold;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                margin-bottom: 10px;
-                letter-spacing: 1px;
-            }
-            
-            .loading-subtext {
-                color: rgba(255, 255, 255, 0.95);
-                font-family: "Arial", sans-serif;
-                font-size: 16px;
-                text-align: center;
-                max-width: 350px;
-                font-weight: 300;
-            }
-            
-            /* GLA logo in loading screen */
-            .loading-logo {
-                width: 70px;
-                height: 70px;
-                margin-bottom: 30px;
-                border-radius: 50%;
-                background: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-                animation: pulse 2s infinite;
-            }
-            
-            @keyframes pulse {
-                0% { transform: scale(1); }
-                50% { transform: scale(1.05); }
-                100% { transform: scale(1); }
-            }
-            
-            .loading-logo img {
-                width: 50px;
-                height: 50px;
-                object-fit: contain;
-            }
-            
-            /*   Card Styling */
-            .metric-card {
-                transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-                border-radius: 12px !important;
-            }
-            
-            .metric-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-            }
-            
-            /*   Control Panel */
-            .control-panel {
-                background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-                border-radius: 15px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            }
-            
-            /*   Graph Containers */
-            .graph-container {
-                border-radius: 15px;
-                overflow: hidden;
-                box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-                transition: box-shadow 0.3s ease;
-            }
-            
-            .graph-container:hover {
-                box-shadow: 0 8px 25px rgba(0,0,0,0.18);
-            }
-            
-            /*   Typography */
-            .dashboard-title {
-                background: linear-gradient(45deg, #1e3a8a, #ea580c);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-                font-weight: 800;
-                letter-spacing: -0.5px;
-            }
-            
-            /* Custom Dropdown Styling */
-            .Select-control {
-                border-radius: 8px !important;
-                border: 2px solid #e9ecef !important;
-                transition: all 0.2s ease !important;
-            }
-            
-            .Select-control:hover {
-                border-color: #1e3a8a !important;
-            }
-            
-            /* Fade-in animation for logo */
-            @keyframes fadeIn {
-                0% { opacity: 0; transform: translateY(-10px); }
-                100% { opacity: 1; transform: translateY(0); }
-            }
-        </style>
     </head>
     <body>
         <!--   Loading Overlay -->
@@ -306,20 +216,21 @@ app.index_string = '''
 </html>
 '''
 
-#colour scheme -  Orange & Blue
-colors = {
-    'primary': '#1e3a8a',      # Deep blue
-    'secondary': '#ea580c',    # Stylish orange  
-    'accent': '#3b82f6',       # Bright blue accent
-    'background': '#F8F9FA',   # Light background
-    'text': '#2C3E50',         # Dark text
-    'success': '#1d4ed8',      # Success blue
-    'warning': '#f59e0b',      # Warning orange
-    'card_bg': '#ffffff'       # Pure white cards
-}
+# Note: Colour scheme is defined in assets/styles.css and parsed here to avoid duplication
+COLORS, CHART_COLORS, CHART_DARK_COLORS = parse_css_colours()
+
+# Font configuration - Change here to update all graph fonts
+FONT_FAMILY = "Arial, sans-serif"
+FONT_FAMILY_BOLD = "Arial Black, Arial, sans-serif"
 
 #Layout
 app.layout = dbc.Container([
+    
+    # Hidden stores for clientside callbacks
+    dcc.Store(id='animation-trigger', data={'count': 0}),
+    dcc.Store(id='last-update-time', data={'timestamp': 0}),
+    dcc.Store(id='dark-mode-state', data={'isDark': False}),  # Track dark mode state
+    html.Div(id='card-animation-target', style={'display': 'none'}),
     
     #   Banner Header with GLA Logo
     html.Div([
@@ -329,92 +240,68 @@ app.layout = dbc.Container([
                 dbc.Col([
                     html.Img(
                         src="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png",
-                        style={
-                            'height': '210px',
-                            'filter': 'brightness(0) invert(1)',  # White logo
-                            'animation': 'fadeIn 1s ease-in'
-                        }
+                        className="banner-logo"
                     )
                 ], width=2, className="d-flex align-items-center justify-content-center"),
                 
                 dbc.Col([
-                    html.H1("UK Fertility Rate Dashboard", 
-                           className="text-center mb-2",
-                           style={
-                               'fontSize': '2.8rem', 
-                               'fontWeight': '800', 
-                               'color': 'white',
-                               'textShadow': '2px 2px 4px rgba(0,0,0,0.3)',
-                               'letterSpacing': '-0.5px'
-                           }),
+                    html.H1("UK Fertility Rate Dashboard", className="text-center mb-2 banner-title"),
                     html.H5("Analysis of Total & Age-Specific Fertility Rates (1993-2023)",
-                           className="text-center mb-0",
-                           style={
-                               'fontWeight': '300', 
-                               'color': 'rgba(255,255,255,0.95)',
-                               'letterSpacing': '0.5px'
-                           })
+                           className="text-center mb-0 banner-subtitle")
                 ], width=8, className="d-flex flex-column justify-content-center"),
                 
-                dbc.Col(width=2)
+                dbc.Col([
+                    html.Button(
+                        "🌙 Dark Mode",
+                        id='theme-toggle-button',
+                        n_clicks=0,
+                        className="theme-toggle"
+                    )
+                ], width=2, className="d-flex align-items-center justify-content-center")
             ], className="align-items-center")
-        ], style={
-            'background': f'linear-gradient(135deg, {colors["primary"]} 0%, {colors["secondary"]} 100%)',
-            'padding': '30px 20px',
-            'marginBottom': '30px',
-            'boxShadow': '0 6px 20px rgba(0,0,0,0.15)',
-            'borderRadius': '0 0 15px 15px',
-            'marginTop': '-25px',
-            'marginLeft': '-25px',
-            'marginRight': '-25px',
-            'animation': 'fadeIn 1s ease-in'
-        })
+        ], className="banner-header")
     ]),
     
     # Control Panel
     dbc.Card([
         dbc.CardBody([
-            html.H4("Dashboard Controls", className="mb-4", 
-                   style={'color': colors['primary'], 'fontWeight': '600'}),
+            html.H4("Dashboard Controls", className="mb-4 dashboard-controls-heading"),
             
             dbc.Row([
-                # Year Dropdown with   styling
+                # Year Dropdown with styling
                 dbc.Col([
-                    html.Label("Select Year", className="fw-bold mb-2",
-                              style={'color': colors['text'], 'fontSize': '14px'}),
+                    html.Label("Select Year", className="fw-bold mb-2 control-label"),
                     dcc.Dropdown(
                         id='year-dropdown',
                         options=[{'label': year, 'value': year} for year in years],
                         value=years[-1],
                         clearable=False,
-                        style={'marginBottom': '15px'}
+                        className="dropdown-container"
                     )
                 ], width=4),
                 
-                # Age Dropdown with   styling
+                # Age Dropdown with styling
                 dbc.Col([
-                    html.Label("Select Age (ASFR)", className="fw-bold mb-2",
-                              style={'color': colors['text'], 'fontSize': '14px'}),
+                    html.Label("Select Age (ASFR)", className="fw-bold mb-2 control-label"),
                     dcc.Dropdown(
                         id='age-dropdown',
                         options=[{'label': f"Age {age}", 'value': age} for age in ages],
                         value="30",
                         clearable=False,
-                        style={'marginBottom': '15px'}
+                        className="dropdown-container"
                     )
                 ], width=4),
                 
-                # LAD Dropdown with search - MULTI-SELECT
+                # LAD Dropdon with search 
                 dbc.Col([
-                    html.Label("Local Authorities (Select Multiple)", className="fw-bold mb-2",
-                              style={'color': colors['text'], 'fontSize': '14px'}),
+                    html.Label("Local Authorities (Select Multiple)", className="fw-bold mb-2 control-label"),
                     dcc.Dropdown(
                         id='lad-dropdown',
                         options=[{'label': lad, 'value': lad} for lad in lads],
                         value=["Manchester"],
                         multi=True,
                         placeholder="Search Local Authorities...",
-                        style={'marginBottom': '15px'}
+                        className="dropdown-container"
                     )
                 ], width=4)
             ])
@@ -427,44 +314,36 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.H4(id="tfr-title", children="Total Fertility Rate", style={'color': colors['primary'], 'fontWeight': '600'}),
-                        html.H2(id="current-tfr", children="--", 
-                               style={'color': colors['secondary'], 'fontWeight': '700', 'fontSize': '2.5rem'}),
+                        html.H4(id="tfr-title", children="Total Fertility Rate", className="metric-title"),
+                        html.H2(id="current-tfr", children="--", className="metric-value-primary"),
                         html.P("Based on first selected Local Authority", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
-                                              'borderLeft': f'5px solid {colors["secondary"]}',
-                                              'boxShadow': '0 4px 15px rgba(0,0,0,0.1)'})
+            ], className="metric-card metric-card-bg metric-border-secondary")
         ], width=4),
         
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.H4(id="comparison-title", children="vs UK Average", style={'color': colors['primary'], 'fontWeight': '600'}),
-                        html.H2(id="tfr-comparison", children="--", 
-                               style={'color': colors['accent'], 'fontWeight': '700', 'fontSize': '2.5rem'}),
+                        html.H4(id="comparison-title", children="vs UK Average", className="metric-title"),
+                        html.H2(id="tfr-comparison", children="--", className="metric-value-accent"),
                         html.P("Based on first selected Local Authority", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
-                                              'borderLeft': f'5px solid {colors["accent"]}',
-                                              'boxShadow': '0 4px 15px rgba(0,0,0,0.1)'})
+            ], className="metric-card metric-card-bg metric-border-accent")
         ], width=4),
         
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.H4("Replacement Level", style={'color': colors['primary'], 'fontWeight': '600'}),
-                        html.H2("2.1", style={'color': colors['warning'], 'fontWeight': '700', 'fontSize': '2.5rem'}),
+                        html.H4("Replacement Level", className="metric-title"),
+                        html.H2("2.1", className="metric-value-warning"),
                         html.P(id="replacement-status", children="--", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="metric-card", style={'backgroundColor': colors['card_bg'], 
-                                              'borderLeft': f'5px solid {colors["warning"]}',
-                                              'boxShadow': '0 4px 15px rgba(0,0,0,0.1)'})
+            ], className="metric-card metric-card-bg metric-border-warning")
         ], width=4)
     ], className="mb-4"),
     
@@ -474,9 +353,8 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.H5("Total Fertility Rate Map", className="text-center mb-0",
-                           style={'color': colors['primary'], 'fontWeight': '600'})
-                ], style={'backgroundColor': colors['background']}),
+                    html.H5("Total Fertility Rate Map", className="text-center mb-0 card-header-title")
+                ], className="card-header-bg"),
                 dbc.CardBody([
                     dcc.Graph(id='tfr-map', style={'height': '520px'})
                 ], style={'padding': '0'})
@@ -487,9 +365,8 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0",
-                           style={'color': colors['primary'], 'fontWeight': '600'})
-                ], style={'backgroundColor': colors['background']}),
+                    html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0 card-header-title")
+                ], className="card-header-bg"),
                 dbc.CardBody([
                     dcc.Graph(id='asfr-map', style={'height': '520px'})
                 ], style={'padding': '0'})
@@ -503,9 +380,8 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.H5("TFR Trend Analysis", className="text-center mb-0",
-                           style={'color': colors['primary'], 'fontWeight': '600'})
-                ], style={'backgroundColor': colors['background']}),
+                    html.H5("TFR Trend Analysis", className="text-center mb-0 card-header-title")
+                ], className="card-header-bg"),
                 dbc.CardBody([
                     dcc.Graph(id='tfr-trend', style={'height': '420px'})
                 ], style={'padding': '0'})
@@ -516,9 +392,8 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.H5("ASFR Trend Analysis", className="text-center mb-0",
-                           style={'color': colors['primary'], 'fontWeight': '600'})
-                ], style={'backgroundColor': colors['background']}),
+                    html.H5("ASFR Trend Analysis", className="text-center mb-0 card-header-title")
+                ], className="card-header-bg"),
                 dbc.CardBody([
                     dcc.Graph(id='asfr-trend', style={'height': '420px'})
                 ], style={'padding': '0'})
@@ -529,53 +404,50 @@ app.layout = dbc.Container([
     # Footer
     dbc.Row([
         dbc.Col([
-            html.Hr(style={'borderColor': colors['secondary'], 'marginTop': '40px'}),
+            html.Hr(className="footer-divider"),
             dbc.Alert([
-                html.H5("About This Dashboard", className="alert-heading",
-                       style={'color': colors['primary'], 'fontWeight': 'bold'}),
+                html.H5("About This Dashboard", className="alert-heading footer-alert-heading"),
                 html.P([
                          "This dashboard provides analysis of UK fertility rates using the GLA Fertility Estimates. ",
                             "The code used to produce these estimates is available on ",
-                            html.A(
-                            "GitHub",  # Text that will show as a link
-                        href="https://github.com/Greater-London-Authority/fertility_rate_estimation/tree/main",
-                        target="_blank"  # Opens link in a new tab
-                                   ,style={'color': colors['primary']}),
+                            html.A("GitHub", 
+                                href="https://github.com/Greater-London-Authority/fertility_rate_estimation/tree/main",
+                                target="_blank",
+                                className="footer-link"),
                         html.Br(),
                     html.Strong("TFR (Total Fertility Rate)"), " Total fertility rate (TFR) is a commonly used measure of overall fertility calculated as the sum of all age-specific fertility rates across all reproductive age groups. It represents the average number of children that a woman would have if she were to experience current age-specific fertility rates over the course of her life. For 2023, we estimate the TFR in Inner London to have been 1.16 compared to 1.54 in Outer London, and 1.41 for England as whole.",
                         html.Br(),
                     html.Strong("ASFR (Age-Specific Fertility Rate, 15 to 49)"), " measures the number of births per woman within specific age groups. For example, in England, the peak childbearing age is currently 32, with an ASFR of 0.107, meaning 107 babies were born for each 1,000 women aged 32.",
                     "The UK replacement fertility rate is approximately ", html.Strong("2.1 children per woman"), "."
-                ], className="mb-2", style={'color': colors['primary']}),
+                ], className="mb-2 footer-text"),
                 html.P([
                     "Use the controls above to explore different years, ages, and local authorities. ",
                     "Interactive maps maintain their fertility-specific colour schemes. ",
                     "Compare trends across time and regions with visualisations. Visualisations can be easily downloaded using the camera icon in the top-right corner of each graph."
-                ], className="mb-0", style={'color': colors['primary']})
-            ], color="navy", style={'backgroundColor': 'rgba(46, 139, 87, 0.1)', 
-                                   'borderColor': colors['primary']}, className="mb-3"),
+                ], className="mb-0 footer-text")
+            ], className="mb-3 footer-alert-bg"),
             
             html.P([
                 "GLA Fertility Dashboard | Data: ",
                 html.A("GLA Fertility Rate Output", 
                       href="https://data.london.gov.uk/dataset/age-specific-fertility-rates-vd4q4/", 
                       target="_blank",
-                      style={'color': colors['primary'], 'textDecoration': 'none'}),
+                      className="footer-link"),
                 " | ONS | ",
                 html.A("Office for National Statistics", 
                       href="https://www.ons.gov.uk", 
                       target="_blank",
-                      style={'color': colors['primary'], 'textDecoration': 'none'})
-            ], className="text-center text-muted", style={'fontSize': '14px'})
+                      className="footer-link")
+            ], className="text-center footer-credits")
         ])
     ])
     
-], fluid=True, style={'padding': '25px', 'backgroundColor': colors['background'], 
-                     'minHeight': '100vh'})
+], fluid=True, className="main-container")
 
-# ==========   CALLBACKS (Same Logic,   Styling) ==========
+# ==========   CALLBACKS ==========
 
-# Update metrics with   formatting
+
+# Update metrics with formatting
 @app.callback(
     [Output('current-tfr', 'children'),
      Output('tfr-comparison', 'children'),
@@ -622,21 +494,27 @@ def update_metrics(selected_year, selected_lads):
 #   TFR map (keeping RdYlBu_r colour scheme)
 @app.callback(
     Output('tfr-map', 'figure'),
-    [Input('year-dropdown', 'value')]
+    [Input('year-dropdown', 'value'),
+     Input('dark-mode-state', 'data')]
 )
-def update_tfr_map(selected_year):
+def update_tfr_map(selected_year, dark_mode_data):
     try:
+        is_dark = dark_mode_data.get('isDark', False) if dark_mode_data else False
+        
         if not selected_year:
             return go.Figure().add_annotation(text="Please select a year", showarrow=False, 
-                                           font=dict(size=16, color=colors['text']))
+                                           font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
         filtered_tfr = tfr_clean[tfr_clean['year'] == selected_year]
         
         if filtered_tfr.empty:
             return go.Figure().add_annotation(text="No data available for selected year", 
-                                           showarrow=False, font=dict(size=16, color=colors['text']))
+                                           showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
-        #   TFR map (KEEPING original fertility colour scheme)
+        # Choose mapbox style based on theme
+        mapbox_style = 'carto-darkmatter' if is_dark else 'carto-positron'
+        
+        #maps
         fig = px.choropleth_mapbox(
             filtered_tfr,
             geojson=filtered_tfr.__geo_interface__,
@@ -645,23 +523,29 @@ def update_tfr_map(selected_year):
             color='tfr',
             hover_name='LAD23NM',
             hover_data={'tfr': ':.3f', 'LAD23CD': False},
-            color_continuous_scale='RdYlBu_r',  # KEPT: Red=high, Blue=low fertility
-            mapbox_style='carto-positron',
+            color_continuous_scale='RdYlBu_r',  
+            mapbox_style=mapbox_style,
             zoom=5.3,
             center={"lat": 54.5, "lon": -2.5},
             opacity=0.85
         )
         
+        # Dark mode styling
+        title_color = '#eeeeee' if is_dark else COLORS['primary']
+        paper_bg = '#16213e' if is_dark else 'white'
+        
         fig.update_layout(
             title=dict(
                 text=f"Total Fertility Rate ({selected_year})",
                 x=0.5,
-                font=dict(size=18, color=colors['primary'], family="Arial Black")
+                font=dict(size=18, color=title_color, family=FONT_FAMILY_BOLD)
             ),
             margin={"r":5,"t":60,"l":5,"b":5},
+            paper_bgcolor=paper_bg,
             coloraxis_colorbar=dict(
                 title="TFR",
-                title_font=dict(size=14, color=colors['primary']),
+                title_font=dict(size=14, color=title_color),
+                tickfont=dict(color=title_color),
                 len=0.8,
                 thickness=20
             )
@@ -674,17 +558,20 @@ def update_tfr_map(selected_year):
         return go.Figure().add_annotation(text=f"Map Error: {str(e)[:50]}...", 
                                        showarrow=False, font=dict(size=14, color='red'))
 
-#   ASFR map (keeping Plasma colour scheme)
+#   ASFR map 
 @app.callback(
     Output('asfr-map', 'figure'),
     [Input('year-dropdown', 'value'),
-     Input('age-dropdown', 'value')]
+     Input('age-dropdown', 'value'),
+     Input('dark-mode-state', 'data')]
 )
-def update_asfr_map(selected_year, selected_age):
+def update_asfr_map(selected_year, selected_age, dark_mode_data):
     try:
+        is_dark = dark_mode_data.get('isDark', False) if dark_mode_data else False
+        
         if not selected_year or not selected_age:
             return go.Figure().add_annotation(text="Please select year and age", 
-                                           showarrow=False, font=dict(size=16, color=colors['text']))
+                                           showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
         filtered_asfr = asfr_clean[
             (asfr_clean['year'] == selected_year) &
@@ -693,9 +580,12 @@ def update_asfr_map(selected_year, selected_age):
         
         if filtered_asfr.empty:
             return go.Figure().add_annotation(text="No data available for selection", 
-                                           showarrow=False, font=dict(size=16, color=colors['text']))
+                                           showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
-        #   ASFR map (KEEPING original fertility colour scheme)
+        # Choose mapbox style based on theme
+        mapbox_style = 'carto-darkmatter' if is_dark else 'carto-positron'
+        
+        #   ASFR map 
         fig = px.choropleth_mapbox(
             filtered_asfr,
             geojson=filtered_asfr.__geo_interface__,
@@ -704,23 +594,29 @@ def update_asfr_map(selected_year, selected_age):
             color='fertility_rate',
             hover_name='LAD23NM',
             hover_data={'fertility_rate': ':.4f', 'LAD23CD': False},
-            color_continuous_scale='Plasma',  # KEPT: Original ASFR colour scheme
-            mapbox_style='carto-positron',
+            color_continuous_scale='Plasma',  
+            mapbox_style=mapbox_style,
             zoom=5.3,
             center={"lat": 54.5, "lon": -2.5},
             opacity=0.85
         )
         
+        # Dark mode styling
+        title_color = '#eeeeee' if is_dark else COLORS['primary']
+        paper_bg = '#16213e' if is_dark else 'white'
+        
         fig.update_layout(
             title=dict(
                 text=f"ASFR Age {selected_age} ({selected_year})",
                 x=0.5,
-                font=dict(size=18, color=colors['primary'], family="Arial Black")
+                font=dict(size=18, color=title_color, family=FONT_FAMILY_BOLD)
             ),
             margin={"r":5,"t":60,"l":5,"b":5},
+            paper_bgcolor=paper_bg,
             coloraxis_colorbar=dict(
                 title=f"ASFR (Age {selected_age})",
-                title_font=dict(size=14, color=colors['primary']),
+                title_font=dict(size=14, color=title_color),
+                tickfont=dict(color=title_color),
                 len=0.8,
                 thickness=20
             )
@@ -733,22 +629,24 @@ def update_asfr_map(selected_year, selected_age):
         return go.Figure().add_annotation(text=f"Map Error: {str(e)[:50]}...", 
                                        showarrow=False, font=dict(size=14, color='red'))
 
-#   TFR trend with   styling - MULTI-LA SUPPORT
+#   TFR trend with styling 
 @app.callback(
     Output('tfr-trend', 'figure'),
-    [Input('lad-dropdown', 'value')]
+    [Input('lad-dropdown', 'value'),
+     Input('dark-mode-state', 'data')]
 )
-def update_tfr_trend(selected_lads):
+def update_tfr_trend(selected_lads, dark_mode_data):
     try:
+        is_dark = dark_mode_data.get('isDark', False) if dark_mode_data else False
+        
         if not selected_lads or len(selected_lads) == 0:
             return go.Figure().add_annotation(text="Please select at least one Local Authority", 
-                                           showarrow=False, font=dict(size=16, color=colors['text']))
+                                           showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
         fig = go.Figure()
         
-        # Color palette for multiple LADs
-        color_palette = ['#1e3a8a', '#ea580c', '#3b82f6', '#10b981', '#f59e0b', 
-                         '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444', '#14b8a6']
+        # Choose color palette based on theme
+        active_chart_colors = CHART_DARK_COLORS if is_dark else CHART_COLORS
         
         # Add trace for each selected LAD
         for idx, lad in enumerate(selected_lads):
@@ -758,14 +656,16 @@ def update_tfr_trend(selected_lads):
                 lad_data['year_int'] = lad_data['year'].astype(int)
                 lad_data = lad_data.sort_values('year_int')
                 
+                marker_line_color = '#1a1a2e' if is_dark else 'white'
+                
                 fig.add_trace(
                     go.Scatter(
                         x=lad_data['year_int'],
                         y=lad_data['tfr'],
                         mode='lines+markers',
                         name=lad,
-                        line=dict(color=color_palette[idx % len(color_palette)], width=3),
-                        marker=dict(size=6, line=dict(color='white', width=1))
+                        line=dict(color=active_chart_colors[idx % len(active_chart_colors)], width=3),
+                        marker=dict(size=6, line=dict(color=marker_line_color, width=1))
                     )
                 )
         
@@ -774,38 +674,56 @@ def update_tfr_trend(selected_lads):
         uk_avg_by_year['year_int'] = uk_avg_by_year['year'].astype(int)
         uk_avg_by_year = uk_avg_by_year.sort_values('year_int')
         
+        avg_line_color = '#888888' if is_dark else 'gray'
+        
         fig.add_trace(
             go.Scatter(
                 x=uk_avg_by_year['year_int'],
                 y=uk_avg_by_year['tfr'],
                 mode='lines',
                 name='UK Average',
-                line=dict(color='gray', width=3, dash='dash'),
+                line=dict(color=avg_line_color, width=3, dash='dash'),
                 opacity=0.8
             )
         )
         
         #   replacement level line
-        fig.add_hline(y=2.1, line_dash="dot", line_color=colors['warning'], line_width=3,
+        fig.add_hline(y=2.1, line_dash="dot", line_color=COLORS['warning'], line_width=3,
                      annotation_text="UK Replacement Level (2.1)", 
-                     annotation_font=dict(color=colors['warning'], size=12))
+                     annotation_font=dict(color=COLORS['warning'], size=12))
         
         title_text = f"TFR Trend Analysis: {', '.join(selected_lads[:3])}"
         if len(selected_lads) > 3:
             title_text += f" (+{len(selected_lads)-3} more)"
         
+        # Dark mode styling
+        title_color = '#eeeeee' if is_dark else COLORS['primary']
+        axis_color = '#aaaaaa' if is_dark else COLORS['text']
+        plot_bg = 'rgba(26,26,46,0.8)' if is_dark else 'rgba(248,249,250,0.8)'
+        paper_bg = '#16213e' if is_dark else 'white'
+        legend_bg = 'rgba(15,52,96,0.8)' if is_dark else 'rgba(255,255,255,0.8)'
+        grid_color = 'rgba(255,255,255,0.1)' if is_dark else 'rgba(0,0,0,0.1)'
+        
         fig.update_layout(
             title=dict(
                 text=title_text,
                 x=0.5,
-                font=dict(size=16, color=colors['primary'], family="Arial Black")
+                font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
             xaxis_title="Year",
             yaxis_title="Total Fertility Rate",
+            xaxis=dict(
+                color=axis_color,
+                gridcolor=grid_color
+            ),
+            yaxis=dict(
+                color=axis_color,
+                gridcolor=grid_color
+            ),
             height=400,
             hovermode='x unified',
-            plot_bgcolor='rgba(248,249,250,0.8)',
-            paper_bgcolor='white',
+            plot_bgcolor=plot_bg,
+            paper_bgcolor=paper_bg,
             showlegend=True,
             legend=dict(
                 orientation="v",
@@ -813,7 +731,8 @@ def update_tfr_trend(selected_lads):
                 y=0.99,
                 xanchor="left",
                 x=0.01,
-                bgcolor="rgba(255,255,255,0.8)"
+                bgcolor=legend_bg,
+                font=dict(color=title_color)
             )
         )
         
@@ -824,22 +743,25 @@ def update_tfr_trend(selected_lads):
         return go.Figure().add_annotation(text=f"Trend Error: {str(e)[:50]}...", 
                                        showarrow=False, font=dict(size=14, color='red'))
 
-#   ASFR trend with styling - SHOWS AGE ON X-AXIS
+#   ASFR trend with styling 
 @app.callback(
     Output('asfr-trend', 'figure'),
     [Input('lad-dropdown', 'value'),
-     Input('year-dropdown', 'value')]
+     Input('year-dropdown', 'value'),
+     Input('dark-mode-state', 'data')]
 )
-def update_asfr_trend(selected_lads, selected_year):
+def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
     try:
+        is_dark = dark_mode_data.get('isDark', False) if dark_mode_data else False
+        
         if not selected_lads or len(selected_lads) == 0 or not selected_year:
             return go.Figure().add_annotation(text="Please select at least one LAD and a year", 
-                                           showarrow=False, font=dict(size=16, color=colors['text']))
+                                           showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
         fig = go.Figure()
         
-        # Color palette for multiple LADs
-        color_palette = ['#ea580c', '#1e3a8a', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
+        # Choose color palette based on theme
+        active_chart_colors = CHART_DARK_COLORS if is_dark else CHART_COLORS
         
         # Add trace for each selected LAD
         for idx, lad in enumerate(selected_lads):
@@ -853,14 +775,14 @@ def update_asfr_trend(selected_lads, selected_year):
                 lad_year_data['age_int'] = lad_year_data['age'].astype(int)
                 lad_year_data = lad_year_data.sort_values('age_int')
                 
-                # LAD ASFR by age - NO MARKERS (lines only)
+                # LAD ASFR by age 
                 fig.add_trace(
                     go.Scatter(
                         x=lad_year_data['age_int'],
                         y=lad_year_data['fertility_rate'],
                         mode='lines',  # Changed from 'lines+markers' to 'lines'
                         name=lad,
-                        line=dict(color=color_palette[idx % len(color_palette)], width=3)
+                        line=dict(color=active_chart_colors[idx % len(active_chart_colors)], width=3)
                     )
                 )
         
@@ -869,13 +791,15 @@ def update_asfr_trend(selected_lads, selected_year):
         uk_avg_age['age_int'] = uk_avg_age['age'].astype(int)
         uk_avg_age = uk_avg_age.sort_values('age_int')
         
+        avg_line_color = '#888888' if is_dark else 'gray'
+        
         fig.add_trace(
             go.Scatter(
                 x=uk_avg_age['age_int'],
                 y=uk_avg_age['fertility_rate'],
                 mode='lines',
                 name='UK Average',
-                line=dict(color='gray', width=3, dash='dash'),
+                line=dict(color=avg_line_color, width=3, dash='dash'),
                 opacity=0.8
             )
         )
@@ -884,11 +808,19 @@ def update_asfr_trend(selected_lads, selected_year):
         if len(selected_lads) > 3:
             title_text += f" (+{len(selected_lads)-3} more)"
         
+        # Dark mode styling
+        title_color = '#eeeeee' if is_dark else COLORS['primary']
+        axis_color = '#aaaaaa' if is_dark else COLORS['text']
+        plot_bg = 'rgba(26,26,46,0.8)' if is_dark else 'rgba(248,249,250,0.8)'
+        paper_bg = '#16213e' if is_dark else 'white'
+        legend_bg = 'rgba(15,52,96,0.8)' if is_dark else 'rgba(255,255,255,0.8)'
+        grid_color = 'rgba(255,255,255,0.1)' if is_dark else 'rgba(0,0,0,0.1)'
+        
         fig.update_layout(
             title=dict(
                 text=title_text,
                 x=0.5,
-                font=dict(size=16, color=colors['primary'], family="Arial Black")
+                font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
             xaxis_title="Age",
             yaxis_title="Age-Specific Fertility Rate",
@@ -896,12 +828,18 @@ def update_asfr_trend(selected_lads, selected_year):
                 tickmode='linear',
                 tick0=15,
                 dtick=5,
-                range=[14, 50]
+                range=[14, 50],
+                color=axis_color,
+                gridcolor=grid_color
+            ),
+            yaxis=dict(
+                color=axis_color,
+                gridcolor=grid_color
             ),
             height=400,
             hovermode='x unified',
-            plot_bgcolor='rgba(248,249,250,0.8)',
-            paper_bgcolor='white',
+            plot_bgcolor=plot_bg,
+            paper_bgcolor=paper_bg,
             showlegend=True,
             legend=dict(
                 orientation="v",
@@ -909,7 +847,8 @@ def update_asfr_trend(selected_lads, selected_year):
                 y=0.99,
                 xanchor="left",
                 x=0.01,
-                bgcolor="rgba(255,255,255,0.8)"
+                bgcolor=legend_bg,
+                font=dict(color=title_color)
             )
         )
         
@@ -920,6 +859,150 @@ def update_asfr_trend(selected_lads, selected_year):
         return go.Figure().add_annotation(text=f"Trend Error: {str(e)[:50]}...", 
                                        showarrow=False, font=dict(size=14, color='red'))
 
+
+# CLIENTSIDE CALLBACKS JavaScript for Performance & Animations
+
+# Clientside callback 1: Animate cards on dropdown change with smooth transitions
+app.clientside_callback(
+    """
+    function(year, age, lad) {
+        // Animate metric cards when any control changes
+        const cards = document.querySelectorAll('.metric-card');
+        cards.forEach((card, index) => {
+            // Add staggered animation effect
+            setTimeout(() => {
+                card.style.transform = 'scale(1.05)';
+                card.style.transition = 'transform 0.3s ease-out';
+                
+                setTimeout(() => {
+                    card.style.transform = 'scale(1)';
+                }, 200);
+            }, index * 100);
+        });
+        
+        // Pulse effect on control panel
+        const controlPanel = document.querySelector('.control-panel');
+        if (controlPanel) {
+            controlPanel.style.boxShadow = '0 8px 30px rgba(30, 58, 138, 0.3)';
+            setTimeout(() => {
+                controlPanel.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+            }, 500);
+        }
+        
+        // Return timestamp to trigger store update
+        return {timestamp: Date.now(), changed: true};
+    }
+    """,
+    Output('last-update-time', 'data'),
+    [Input('year-dropdown', 'value'),
+     Input('age-dropdown', 'value'),
+     Input('lad-dropdown', 'value')]
+)
+
+# Clientside callback 2: Add ripple effect to graphs on hover
+app.clientside_callback(
+    """
+    function(timestamp) {
+        // Only add event listeners once
+        if (!window.graphHoverListenersAdded) {
+            const graphs = document.querySelectorAll('.graph-container');
+            
+            graphs.forEach(graph => {
+                graph.addEventListener('mouseenter', function(e) {
+                    this.style.transform = 'translateY(-5px)';
+                    this.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                });
+                
+                graph.addEventListener('mouseleave', function(e) {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+            
+            // Mark as added
+            window.graphHoverListenersAdded = true;
+        }
+        
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output('card-animation-target', 'children'),
+    [Input('last-update-time', 'data')]
+)
+
+# Clientside callback 3: Add loading shimmer effect during graph updates
+app.clientside_callback(
+    """
+    function(year) {
+        // Add shimmer effect to graphs while loading
+        const graphs = document.querySelectorAll('.js-plotly-plot');
+        
+        graphs.forEach(graph => {
+            const parent = graph.closest('.graph-container');
+            if (parent) {
+                parent.style.opacity = '0.7';
+                parent.style.transition = 'opacity 0.2s ease-in';
+                
+                setTimeout(() => {
+                    parent.style.opacity = '1';
+                    parent.style.transition = 'opacity 0.4s ease-out';
+                }, 300);
+            }
+        });
+        
+        // Add sparkle effect to the updated graphs
+        setTimeout(() => {
+            graphs.forEach((graph, idx) => {
+                setTimeout(() => {
+                    const parent = graph.closest('.graph-container');
+                    if (parent) {
+                        parent.style.boxShadow = '0 10px 40px rgba(30, 58, 138, 0.4)';
+                        setTimeout(() => {
+                            parent.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)';
+                        }, 400);
+                    }
+                }, idx * 150);
+            });
+        }, 500);
+        
+        return {count: Math.random()};
+    }
+    """,
+    Output('animation-trigger', 'data'),
+    [Input('year-dropdown', 'value')]
+)
+
+# Clientside callback 4: Dark Mode Toggle - Updates button text and store
+app.clientside_callback(
+    """
+    function(n_clicks) {
+        if (!n_clicks) {
+            // On initial load, check localStorage for saved preference
+            const savedTheme = localStorage.getItem('darkMode');
+            if (savedTheme === 'true') {
+                document.body.classList.add('dark-mode');
+                return ['Light Mode ☀️', {isDark: true}];
+            }
+            return ['Dark Mode 🌙', {isDark: false}];
+        }
+        
+        // Toggle dark mode class on body
+        const body = document.body;
+        body.classList.toggle('dark-mode');
+        
+        // Check if dark mode is now active
+        const isDark = body.classList.contains('dark-mode');
+        
+        // Save preference to localStorage
+        localStorage.setItem('darkMode', isDark);
+        
+        // Update button text and store
+        return [isDark ? 'Light Mode ☀️' : 'Dark Mode 🌙', {isDark: isDark}];
+    }
+    """,
+    [Output('theme-toggle-button', 'children'),
+     Output('dark-mode-state', 'data')],
+    [Input('theme-toggle-button', 'n_clicks')]
+)
 
 
 if __name__ == '__main__':

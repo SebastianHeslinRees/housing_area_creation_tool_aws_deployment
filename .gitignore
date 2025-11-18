@@ -6,8 +6,15 @@ AWSCLIV2.pkg
 
 # Ignore large GeoJSON data files (stored in S3)
 *.geojson
+*.geojson.local
 asfr_merged.geojson
 tfr_merged.geojson
+asfr_merged_reduced.geojson
+tfr_merged_reduced.geojson
+
+# Data processing scripts (keep local only)
+reduce_geojson_precision.py
+round_asfr_fertility_rate.py
 
 # Ignore Docker and AWS-specific files not needed for App Runner
 Dockerfile

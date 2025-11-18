@@ -1,6 +1,6 @@
 # UK Fertility Rate Dashboard
 
-This repository now hosts the UK Fertility Rate Dashboard — an interactive Dash app for exploring Total Fertility Rate (TFR) and Age-Specific Fertility Rate (ASFR) by Local Authority.
+UK Fertility Rate Dashboard: an interactive Dash app for exploring Total Fertility Rate (TFR) and Age-Specific Fertility Rate (ASFR) by Local Authority.
 
 ## Features
 - Interactive choropleth maps for TFR and ASFR
@@ -34,18 +34,8 @@ python app.py
 Open http://127.0.0.1:8022 in your browser.
 
 ## Production / App Runner
-The repository contains an `apprunner.yaml` configured to run the app with Gunicorn on port 8022:
-
-```
-gunicorn --bind 0.0.0.0:8022 --workers 1 --timeout 120 app:server
-```
-
-Ensure App Runner uses the provided `requirements.txt` so all dependencies are installed during build.
+The repository contains an `apprunner.yaml` configured to run the app with Gunicorn
 
 ## Troubleshooting
 - If maps or metrics show `No data`, check that the files above contain the expected columns (`year`, `LAD23NM`, `LAD23CD`, `fertility_rate`, `age`).
-- For deployment issues, review App Runner logs and ensure the `PORT` environment variable matches `8022`.
 
-## Notes
-- The app exposes the WSGI `server` variable so Gunicorn can import `app:server`.
-- If you want a different port, update both `app.py` (when running directly) and `apprunner.yaml`.

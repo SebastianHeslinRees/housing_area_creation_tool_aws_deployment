@@ -251,12 +251,19 @@ app.layout = dbc.Container([
                 ], width=8, className="d-flex flex-column justify-content-center"),
                 
                 dbc.Col([
-                    html.Button(
-                        "🌙 Dark Mode",
-                        id='theme-toggle-button',
-                        n_clicks=0,
-                        className="theme-toggle"
-                    )
+                    html.Div([
+                        html.Label([
+                            html.Span("☀️", className="theme-icon-light"),
+                            dbc.Checklist(
+                                options=[{"label": "", "value": 1}],
+                                value=[],
+                                id="theme-toggle-button",
+                                switch=True,
+                                className="theme-toggle-switch"
+                            ),
+                            html.Span("🌙", className="theme-icon-dark")
+                        ], className="theme-toggle-label")
+                    ], className="theme-toggle-container")
                 ], width=2, className="d-flex align-items-center justify-content-center")
             ], className="align-items-center")
         ], className="banner-header")
@@ -971,37 +978,41 @@ app.clientside_callback(
     [Input('year-dropdown', 'value')]
 )
 
-# Clientside callback 4: Dark Mode Toggle, Updates button text and store
+# Clientside callback 4: Dark Mode Toggle, Updates toggle state and store
 app.clientside_callback(
     """
-    function(n_clicks) {
-        if (!n_clicks) {
+    function(toggleValue) {
+        // Check if this is initial load
+        if (toggleValue === undefined) {
             // On initial load, check localStorage for saved preference
             const savedTheme = localStorage.getItem('darkMode');
-            if (savedTheme === 'true') {
+            const isDark = savedTheme === 'true';
+            if (isDark) {
                 document.body.classList.add('dark-mode');
-                return ['Light Mode ☀️', {isDark: true}];
             }
-            return ['Dark Mode 🌙', {isDark: false}];
+            return [isDark ? [1] : [], {isDark: isDark}];
         }
         
-        // Toggle dark mode class on body
-        const body = document.body;
-        body.classList.toggle('dark-mode');
+        // Toggle is on if value array has length > 0
+        const isDark = toggleValue && toggleValue.length > 0;
         
-        // Check if dark mode is now active
-        const isDark = body.classList.contains('dark-mode');
+        // Apply dark mode class to body
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
         
         // Save preference to localStorage
         localStorage.setItem('darkMode', isDark);
         
-        // Update button text and store
-        return [isDark ? 'Light Mode ☀️' : 'Dark Mode 🌙', {isDark: isDark}];
+        // Update store
+        return [toggleValue, {isDark: isDark}];
     }
     """,
-    [Output('theme-toggle-button', 'children'),
+    [Output('theme-toggle-button', 'value'),
      Output('dark-mode-state', 'data')],
-    [Input('theme-toggle-button', 'n_clicks')]
+    [Input('theme-toggle-button', 'value')]
 )
 
 

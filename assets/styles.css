@@ -479,22 +479,95 @@ button:focus,
     letter-spacing: 0.5px;
 }
 
-.theme-toggle {
-    background-color: rgba(255,255,255,0.2);
-    border: 2px solid white;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+/* Theme Toggle Switch */
+.theme-toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
 }
 
-.theme-toggle:hover {
-    background-color: rgba(255,255,255,0.3);
-    transform: scale(1.05);
+.theme-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.theme-icon-light,
+.theme-icon-dark {
+    font-size: 20px;
+    opacity: 0.5;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.theme-toggle-switch {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+}
+
+.theme-toggle-switch .form-check {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    display: flex;
+    align-items: center;
+}
+
+.theme-toggle-switch .form-switch {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input {
+    width: 56px !important;
+    height: 28px !important;
+    cursor: pointer;
+    background-color: #ffd700 !important;
+    border: 2px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    margin: 0 !important;
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+.theme-toggle-switch .form-switch .form-check-input:checked {
+    background-color: #1e3a8a !important;
+    border-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.3) !important;
+    border-color: white !important;
+    outline: none !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input:hover {
+    opacity: 0.9;
+}
+
+.theme-toggle-switch .form-check-input:focus-visible {
+    outline: none !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.theme-toggle-switch .form-check-label {
+    outline: none !important;
+}
+
+/* Icon opacity changes based on mode */
+body:not(.dark-mode) .theme-icon-light {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+body.dark-mode .theme-icon-dark {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 /* Control Panel Labels */

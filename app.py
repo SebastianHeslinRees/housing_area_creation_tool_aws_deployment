@@ -145,8 +145,13 @@ asfr_clean['age'] = asfr_clean['age'].astype(str)
 print(f"  dashboard ready: {len(years)} years, {len(ages)} ages, {len(lads)} LADs")
 
 # Initialise Dash App
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SANDSTONE])
-app.title = "UK Fertility Dashboard - Enhanced"
+app = dash.Dash(
+    __name__, 
+    external_stylesheets=[
+        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    ]
+)
+app.title = "UK Fertility Dashboard"
 server = app.server  # Expose server for gunicorn
 
 # loading spinner
@@ -219,237 +224,253 @@ app.index_string = '''
 # Note: Colour scheme is defined in assets/styles.css and parsed here to avoid duplication
 COLORS, CHART_COLORS, CHART_DARK_COLORS = parse_css_colours()
 
-# Font configuration - Change here to update all graph fonts
-FONT_FAMILY = "Arial, sans-serif"
-FONT_FAMILY_BOLD = "Arial Black, Arial, sans-serif"
+# Font configuration - Using Inter font from LDN-Viz theme
+FONT_FAMILY = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+FONT_FAMILY_BOLD = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
 #Layout
-app.layout = dbc.Container([
+app.layout = html.Div([
     
     # Hidden stores for clientside callbacks
     dcc.Store(id='animation-trigger', data={'count': 0}),
     dcc.Store(id='last-update-time', data={'timestamp': 0}),
     dcc.Store(id='dark-mode-state', data={'isDark': False}),  # Track dark mode state
+    dcc.Store(id='sidebar-collapsed', data=False),  # Track sidebar state
     html.Div(id='card-animation-target', style={'display': 'none'}),
     
-    #   Banner Header with GLA Logo
+    # Sidebar toggle button (outside sidebar so always visible)
+    html.Button([
+        html.Span("☰", className="hamburger-icon")
+    ], id="sidebar-toggle", className="sidebar-toggle-btn"),
+    
+    # Collapsible Sidebar
     html.Div([
-        # Banner with gradient background
+        # Sidebar content
         html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.Img(
-                        src="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png",
-                        className="banner-logo"
-                    )
-                ], width=2, className="d-flex align-items-center justify-content-center"),
-                
-                dbc.Col([
-                    html.H1("UK Fertility Rate Dashboard", className="text-center mb-2 banner-title"),
+            # Sidebar header
+            html.Div([
+                html.H4("Filters", className="sidebar-title"),
+                html.Button("×", id="sidebar-close", className="sidebar-close-btn")
+            ], className="sidebar-header"),
+            
+            # Year Dropdown
+            html.Div([
+                html.Label("Select Year", className="fw-bold mb-2 control-label"),
+                dcc.Dropdown(
+                    id='year-dropdown',
+                    options=[{'label': year, 'value': year} for year in years],
+                    value=years[-1],
+                    clearable=False,
+                    className="dropdown-container"
+                )
+            ], className="mb-4"),
+            
+            # Age Dropdown
+            html.Div([
+                html.Label("Select Age (ASFR)", className="fw-bold mb-2 control-label"),
+                dcc.Dropdown(
+                    id='age-dropdown',
+                    options=[{'label': f"Age {age}", 'value': age} for age in ages],
+                    value="30",
+                    clearable=False,
+                    className="dropdown-container"
+                )
+            ], className="mb-4"),
+            
+            # LAD Dropdown
+            html.Div([
+                html.Label("Local Authorities (Select Multiple)", className="fw-bold mb-2 control-label"),
+                dcc.Dropdown(
+                    id='lad-dropdown',
+                    options=[{'label': lad, 'value': lad} for lad in lads],
+                    value=["Manchester"],
+                    multi=True,
+                    placeholder="Search Local Authorities...",
+                    className="dropdown-container"
+                )
+            ], className="mb-4"),
+            
+            # Clear Selections Button
+            html.Div([
+                html.Button([
+                    html.Span(style={"marginRight": "8px"}),
+                    "Clear Selections"
+                ], id="clear-selections-btn", className="button-styling")
+            ], className="mt-4"),
+            
+            # Dark mode toggle below clear button
+            html.Div([
+                html.Label([
+                    html.Span("☀", className="theme-icon-light"),
+                    dbc.Checklist(
+                        options=[{"label": "", "value": 1}],
+                        value=[],
+                        id="theme-toggle-button",
+                        switch=True,
+                        className="theme-toggle-switch"
+                    ),
+                    html.Span("☾", className="theme-icon-dark")
+                ], className="theme-toggle-label")
+            ], className="sidebar-theme-toggle-below-button")
+            
+        ], id="sidebar", className="sidebar")
+    ], className="sidebar-container"),
+    
+    # Main content area
+    html.Div([
+        #   Banner Header
+        html.Div([
+            # Banner header
+            html.Div([
+                html.Div([
+                    html.H1("UK Fertility Rate Dashboard", className="banner-title"),
                     html.H5("Analysis of Total & Age-Specific Fertility Rates (1993-2023)",
-                           className="text-center mb-0 banner-subtitle")
-                ], width=8, className="d-flex flex-column justify-content-center"),
-                
-                dbc.Col([
-                    html.Div([
-                        html.Label([
-                            html.Span("☀️", className="theme-icon-light"),
-                            dbc.Checklist(
-                                options=[{"label": "", "value": 1}],
-                                value=[],
-                                id="theme-toggle-button",
-                                switch=True,
-                                className="theme-toggle-switch"
-                            ),
-                            html.Span("🌙", className="theme-icon-dark")
-                        ], className="theme-toggle-label")
-                    ], className="theme-toggle-container")
-                ], width=2, className="d-flex align-items-center justify-content-center")
-            ], className="align-items-center")
-        ], className="banner-header")
-    ]),
-    
-    # Control Panel
-    dbc.Card([
-        dbc.CardBody([
-            html.H4("Dashboard Controls", className="mb-4 dashboard-controls-heading"),
-            
+                           className="banner-subtitle")
+                ], className="banner-content")
+            ], className="banner-header")
+        ]),
+        
+        # Main content container
+        dbc.Container([
+            # Summary Metrics
             dbc.Row([
-                # Year Dropdown with styling
                 dbc.Col([
-                    html.Label("Select Year", className="fw-bold mb-2 control-label"),
-                    dcc.Dropdown(
-                        id='year-dropdown',
-                        options=[{'label': year, 'value': year} for year in years],
-                        value=years[-1],
-                        clearable=False,
-                        className="dropdown-container"
-                    )
-                ], width=4),
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Div([
+                                html.H4(id="tfr-title", children="Total Fertility Rate", className="metric-title"),
+                                html.H2(id="current-tfr", children="--", className="metric-value-primary"),
+                                html.P("Based on first selected Local Authority", className="text-muted")
+                            ], className="text-center")
+                        ])
+                    ], className="metric-card metric-card-bg metric-border-secondary")
+                ], xs=12, sm=12, md=4, lg=4),
                 
-                # Age Dropdown with styling
                 dbc.Col([
-                    html.Label("Select Age (ASFR)", className="fw-bold mb-2 control-label"),
-                    dcc.Dropdown(
-                        id='age-dropdown',
-                        options=[{'label': f"Age {age}", 'value': age} for age in ages],
-                        value="30",
-                        clearable=False,
-                        className="dropdown-container"
-                    )
-                ], width=4),
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Div([
+                                html.H4(id="comparison-title", children="vs UK Average", className="metric-title"),
+                                html.H2(id="tfr-comparison", children="--", className="metric-value-accent"),
+                                html.P("Based on first selected Local Authority", className="text-muted")
+                            ], className="text-center")
+                        ])
+                    ], className="metric-card metric-card-bg metric-border-accent")
+                ], xs=12, sm=12, md=4, lg=4),
                 
-                # LAD Dropdon with search 
                 dbc.Col([
-                    html.Label("Local Authorities (Select Multiple)", className="fw-bold mb-2 control-label"),
-                    dcc.Dropdown(
-                        id='lad-dropdown',
-                        options=[{'label': lad, 'value': lad} for lad in lads],
-                        value=["Manchester"],
-                        multi=True,
-                        placeholder="Search Local Authorities...",
-                        className="dropdown-container"
-                    )
-                ], width=4)
-            ])
-        ])
-    ], className="mb-4 control-panel"),
-    
-    # Summary Metrics
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.H4(id="tfr-title", children="Total Fertility Rate", className="metric-title"),
-                        html.H2(id="current-tfr", children="--", className="metric-value-primary"),
-                        html.P("Based on first selected Local Authority", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="metric-card metric-card-bg metric-border-secondary")
-        ], width=4),
-        
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.H4(id="comparison-title", children="vs UK Average", className="metric-title"),
-                        html.H2(id="tfr-comparison", children="--", className="metric-value-accent"),
-                        html.P("Based on first selected Local Authority", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="metric-card metric-card-bg metric-border-accent")
-        ], width=4),
-        
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.H4("Replacement Level", className="metric-title"),
-                        html.H2("2.1", className="metric-value-warning"),
-                        html.P(id="replacement-status", children="--", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="metric-card metric-card-bg metric-border-warning")
-        ], width=4)
-    ], className="mb-4"),
-    
-    #   Maps Section
-    dbc.Row([
-        # TFR Map
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.H5("Total Fertility Rate Map", className="text-center mb-0 card-header-title")
-                ], className="card-header-bg"),
-                dbc.CardBody([
-                    dcc.Graph(id='tfr-map', style={'height': '520px'})
-                ], style={'padding': '0'})
-            ], className="graph-container")
-        ], width=6),
-        
-        # ASFR Map 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0 card-header-title")
-                ], className="card-header-bg"),
-                dbc.CardBody([
-                    dcc.Graph(id='asfr-map', style={'height': '520px'})
-                ], style={'padding': '0'})
-            ], className="graph-container")
-        ], width=6)
-    ], className="mb-4"),
-    
-    #   Trend Analysis
-    dbc.Row([
-        # TFR Trend 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.H5("TFR Trend Analysis", className="text-center mb-0 card-header-title")
-                ], className="card-header-bg"),
-                dbc.CardBody([
-                    dcc.Graph(id='tfr-trend', style={'height': '420px'})
-                ], style={'padding': '0'})
-            ], className="graph-container")
-        ], width=6),
-        
-        # ASFR Trend 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.H5("ASFR Trend Analysis", className="text-center mb-0 card-header-title")
-                ], className="card-header-bg"),
-                dbc.CardBody([
-                    dcc.Graph(id='asfr-trend', style={'height': '420px'})
-                ], style={'padding': '0'})
-            ], className="graph-container")
-        ], width=6)
-    ], className="mb-4"),
-    
-    # Footer
-    dbc.Row([
-        dbc.Col([
-            html.Hr(className="footer-divider"),
-            dbc.Alert([
-                html.H5("About This Dashboard", className="alert-heading footer-alert-heading"),
-                html.P([
-                         "This dashboard provides analysis of UK fertility rates using the GLA Fertility Estimates. ",
-                            "The code used to produce these estimates is available on ",
-                            html.A("GitHub", 
-                                href="https://github.com/Greater-London-Authority/fertility_rate_estimation/tree/main",
-                                target="_blank",
-                                className="footer-link"),
-                        html.Br(),
-                    html.Strong("TFR (Total Fertility Rate)"), " Total fertility rate (TFR) is a commonly used measure of overall fertility calculated as the sum of all age-specific fertility rates across all reproductive age groups. It represents the average number of children that a woman would have if she were to experience current age-specific fertility rates over the course of her life. For 2023, we estimate the TFR in Inner London to have been 1.16 compared to 1.54 in Outer London, and 1.41 for England as whole.",
-                        html.Br(),
-                    html.Strong("ASFR (Age-Specific Fertility Rate, 15 to 49)"), " measures the number of births per woman within specific age groups. For example, in England, the peak childbearing age is currently 32, with an ASFR of 0.107, meaning 107 babies were born for each 1,000 women aged 32.",
-                    "The UK replacement fertility rate is approximately ", html.Strong("2.1 children per woman"), "."
-                ], className="mb-2 footer-text"),
-                html.P([
-                    "Use the controls above to explore different years, ages, and local authorities. ",
-                    "Interactive maps maintain their fertility-specific colour schemes. ",
-                    "Compare trends across time and regions with visualisations. Visualisations can be easily downloaded using the camera icon in the top-right corner of each graph."
-                ], className="mb-0 footer-text")
-            ], className="mb-3 footer-alert-bg"),
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Div([
+                                html.H4("Replacement Level", className="metric-title"),
+                                html.H2("2.1", className="metric-value-warning"),
+                                html.P(id="replacement-status", children="--", className="text-muted")
+                            ], className="text-center")
+                        ])
+                    ], className="metric-card metric-card-bg metric-border-warning")
+                ], xs=12, sm=12, md=4, lg=4)
+            ], className="mb-4 g-3"),
             
-            html.P([
-                "GLA Fertility Dashboard | Data: ",
-                html.A("GLA Fertility Rate Output", 
-                      href="https://data.london.gov.uk/dataset/age-specific-fertility-rates-vd4q4/", 
-                      target="_blank",
-                      className="footer-link"),
-                " | ONS | ",
-                html.A("Office for National Statistics", 
-                      href="https://www.ons.gov.uk", 
-                      target="_blank",
-                      className="footer-link")
-            ], className="text-center footer-credits")
-        ])
-    ])
+            #   Maps Section
+            dbc.Row([
+                # TFR Map
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("Total Fertility Rate Map", className="text-center mb-0 card-header-title")
+                        ], className="card-header-bg"),
+                        dbc.CardBody([
+                            dcc.Graph(id='tfr-map', style={'height': '520px'})
+                        ], style={'padding': '0'})
+                    ], className="graph-container")
+                ], width=6),
+                
+                # ASFR Map 
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0 card-header-title")
+                        ], className="card-header-bg"),
+                        dbc.CardBody([
+                            dcc.Graph(id='asfr-map', style={'height': '520px'})
+                        ], style={'padding': '0'})
+                    ], className="graph-container")
+                ], width=6)
+            ], className="mb-4"),
+            
+            #   Trend Analysis
+            dbc.Row([
+                # TFR Trend 
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("TFR Trend Analysis", className="text-center mb-0 card-header-title")
+                        ], className="card-header-bg"),
+                        dbc.CardBody([
+                            dcc.Graph(id='tfr-trend', style={'height': '420px'})
+                        ], style={'padding': '0'})
+                    ], className="graph-container")
+                ], width=6),
+                
+                # ASFR Trend 
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H5("ASFR Trend Analysis", className="text-center mb-0 card-header-title")
+                        ], className="card-header-bg"),
+                        dbc.CardBody([
+                            dcc.Graph(id='asfr-trend', style={'height': '420px'})
+                        ], style={'padding': '0'})
+                    ], className="graph-container")
+                ], width=6)
+            ], className="mb-4"),
+            
+            # Footer
+            dbc.Row([
+                dbc.Col([
+                    html.Hr(className="footer-divider"),
+                    dbc.Alert([
+                        html.H5("About This Dashboard", className="alert-heading footer-alert-heading"),
+                        html.P([
+                                 "This dashboard provides analysis of UK fertility rates using the GLA Fertility Estimates. ",
+                                    "The code used to produce these estimates is available on ",
+                                    html.A("GitHub", 
+                                        href="https://github.com/Greater-London-Authority/fertility_rate_estimation/tree/main",
+                                        target="_blank",
+                                        className="footer-link"),
+                                html.Br(),
+                            html.Strong("TFR (Total Fertility Rate)"), " Total fertility rate (TFR) is a commonly used measure of overall fertility calculated as the sum of all age-specific fertility rates across all reproductive age groups. It represents the average number of children that a woman would have if she were to experience current age-specific fertility rates over the course of her life. For 2023, we estimate the TFR in Inner London to have been 1.16 compared to 1.54 in Outer London, and 1.41 for England as whole.",
+                                html.Br(),
+                            html.Strong("ASFR (Age-Specific Fertility Rate, 15 to 49)"), " measures the number of births per woman within specific age groups. For example, in England, the peak childbearing age is currently 32, with an ASFR of 0.107, meaning 107 babies were born for each 1,000 women aged 32.",
+                            "The UK replacement fertility rate is approximately ", html.Strong("2.1 children per woman"), "."
+                        ], className="mb-2 footer-text"),
+                        html.P([
+                            "Use the controls above to explore different years, ages, and local authorities. ",
+                            "Interactive maps maintain their fertility-specific colour schemes. ",
+                            "Compare trends across time and regions with visualisations. Visualisations can be easily downloaded using the camera icon in the top-right corner of each graph."
+                        ], className="mb-0 footer-text")
+                    ], className="mb-3 footer-alert-bg"),
+                    
+                    html.P([
+                        "GLA Fertility Dashboard | Data: ",
+                        html.A("GLA Fertility Rate Output", 
+                              href="https://data.london.gov.uk/dataset/age-specific-fertility-rates-vd4q4/", 
+                              target="_blank",
+                              className="footer-link"),
+                        " | ONS | ",
+                        html.A("Office for National Statistics", 
+                              href="https://www.ons.gov.uk", 
+                              target="_blank",
+                              className="footer-link")
+                    ], className="text-center footer-credits")
+                ], width=12)  # Close dbc.Col
+            ])  # Close dbc.Row
+        ], fluid=True, className="main-container")  # Close dbc.Container
+        
+    ], id="main-content", className="main-content")  # Close main content div
     
-], fluid=True, className="main-container")
+], className="dashboard-wrapper")  # Close outer wrapper div
+
 
 # ==========   CALLBACKS ==========
 
@@ -497,6 +518,17 @@ def update_metrics(selected_year, selected_lads):
     except Exception as e:
         print(f"  metrics error: {e}")
         return "Error", "Error", "Data Error"
+
+# Clear selections button callback
+@app.callback(
+    Output('lad-dropdown', 'value'),
+    [Input('clear-selections-btn', 'n_clicks')],
+    prevent_initial_call=True
+)
+def clear_selections(n_clicks):
+    if n_clicks:
+        return []
+    return ["Manchester"]
 
 #   TFR map (keeping RdYlBu_r colour scheme)
 @app.callback(
@@ -1015,7 +1047,64 @@ app.clientside_callback(
     [Input('theme-toggle-button', 'value')]
 )
 
+# Clientside callback 5: Sidebar Toggle
+app.clientside_callback(
+    """
+    function(toggleClicks, closeClicks) {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarContainer = document.querySelector('.sidebar-container');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        
+        if (!sidebar || !sidebarContainer) {
+            return window.dash_clientside.no_update;
+        }
+        
+        // Check if either button was clicked
+        const ctx = window.dash_clientside.callback_context;
+        if (!ctx.triggered || ctx.triggered.length === 0) {
+            // Initial load - check localStorage
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            if (savedState === 'true') {
+                sidebar.classList.add('collapsed');
+                sidebarContainer.classList.add('collapsed');
+                if (toggleBtn) toggleBtn.classList.remove('hidden');
+            } else {
+                if (toggleBtn) toggleBtn.classList.add('hidden');
+            }
+            return window.dash_clientside.no_update;
+        }
+        
+        // Toggle the sidebar
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        sidebarContainer.classList.toggle('collapsed');
+        
+        // Toggle button visibility
+        if (toggleBtn) {
+            if (isCollapsed) {
+                toggleBtn.classList.remove('hidden');
+            } else {
+                toggleBtn.classList.add('hidden');
+            }
+        }
+        
+        // Save state
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+        
+        // On mobile, also toggle 'open' class
+        if (window.innerWidth <= 768) {
+            sidebar.classList.toggle('open');
+        }
+        
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output('sidebar-collapsed', 'data'),
+    [Input('sidebar-toggle', 'n_clicks'),
+     Input('sidebar-close', 'n_clicks')]
+)
+
 
 if __name__ == '__main__':
     print(f"Starting UK Fertility Dashboard on port {PORT}...")
     app.run(debug=True, port=PORT)
+

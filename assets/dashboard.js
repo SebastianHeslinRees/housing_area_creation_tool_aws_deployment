@@ -14,6 +14,9 @@ window.addEventListener('DOMContentLoaded', function() {
     
     // Add keyboard shortcuts
     initialiseKeyboardShortcuts();
+    
+    // Initialise sidebar
+    initialiseSidebar();
 });
 
 /**
@@ -49,12 +52,101 @@ function initialiseKeyboardShortcuts() {
             if (dropdown) dropdown.focus();
         }
         
-        // Escape to clear focus
+        // Alt+S to toggle sidebar
+        if (e.altKey && e.key === 's') {
+            e.preventDefault();
+            toggleSidebar();
+        }
+        
+        // Escape to clear focus or close sidebar
         if (e.key === 'Escape') {
-            document.activeElement.blur();
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && !sidebar.classList.contains('collapsed')) {
+                toggleSidebar();
+            } else {
+                document.activeElement.blur();
+            }
         }
     });
 }
+
+/**
+ * Initialise sidebar toggle functionality
+ */
+function initialiseSidebar() {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const closeBtn = document.getElementById('sidebar-close');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarContainer = document.querySelector('.sidebar-container');
+    const mainContent = document.getElementById('main-content');
+    
+    // Load saved sidebar state
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    if (savedState === 'true') {
+        sidebar.classList.add('collapsed');
+        sidebarContainer.classList.add('collapsed');
+        if (mainContent) mainContent.classList.add('sidebar-collapsed');
+        if (toggleBtn) toggleBtn.classList.remove('hidden');
+    } else {
+        // Hide toggle button when sidebar is open
+        if (toggleBtn) toggleBtn.classList.add('hidden');
+    }
+    
+    // Toggle button click
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleSidebar);
+    }
+    
+    // Close button click
+    if (closeBtn) {
+        closeBtn.addEventListener('click', toggleSidebar);
+    }
+    
+    // Close sidebar when clicking outside on mobile
+    if (window.innerWidth <= 768) {
+        document.addEventListener('click', function(e) {
+            if (sidebar && !sidebar.classList.contains('collapsed') &&
+                !sidebarContainer.contains(e.target) &&
+                !toggleBtn.contains(e.target)) {
+                toggleSidebar();
+            }
+        });
+    }
+}
+
+/**
+ * Toggle sidebar open/closed
+ */
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarContainer = document.querySelector('.sidebar-container');
+    const mainContent = document.getElementById('main-content');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    
+    if (sidebar && sidebarContainer) {
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        sidebarContainer.classList.toggle('collapsed');
+        if (mainContent) mainContent.classList.toggle('sidebar-collapsed');
+        
+        // Toggle button visibility
+        if (toggleBtn) {
+            if (isCollapsed) {
+                toggleBtn.classList.remove('hidden');
+            } else {
+                toggleBtn.classList.add('hidden');
+            }
+        }
+        
+        // Save state
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+        
+        // On mobile, also toggle 'open' class for different behavior
+        if (window.innerWidth <= 768) {
+            sidebar.classList.toggle('open');
+        }
+    }
+}
+
 
 /**
  * Utility: Log performance metrics

@@ -3,49 +3,319 @@
    Python reads CSS variables via parse_css_colours() function.
    This ensures single source of truth for colour schemes. */
 
+/* Import GLA theme tokens first */
+@import url('gla-theme-tokens.css');
+
 /* ========== CSS VARIABLES (Colour Scheme) ========== */
+/* Mapped to GLA @ldn-viz/themes design tokens */
 :root {
-    /* Primary colour palette - Orange & Blue theme */
-    --color-primary: #1e3a8a;      /* Deep blue */
-    --color-secondary: #ea580c;    /* Orange */
-    --color-accent: #3b82f6;       /* Bright blue accent */
-    --color-background: #F8F9FA;   /* Light background */
-    --color-text: #2C3E50;         /* Dark text */
-    --color-success: #1d4ed8;      /* Success blue */
-    --color-warning: #f59e0b;      /* Warning orange */
-    --color-card-bg: #ffffff;      /* Pure white cards */
+    /* Font family - Inter from GLA theme */
+    --font-family: var(--global-typography-font-family);
+    
+    /* Primary colour palette - Using GLA static brand colors */
+    --color-primary: var(--global-color-static-gla-blue);
+    --color-secondary: var(--global-color-static-gla-orange);
+    --color-accent: var(--global-color-static-gla-cyan);
+    --color-background: var(--theme-light-canvas-background-0);
+    --color-text: var(--theme-light-text-primary);
+    --color-success: var(--global-color-static-gla-green);
+    --color-warning: var(--global-color-static-gla-mustard);
+    --color-card-bg: var(--theme-light-canvas-background-1);
     
     /* Dark mode colours */
-    --color-dark-bg: #1a1a2e;
-    --color-dark-card: #16213e;
+    --color-dark-bg: var(--theme-dark-canvas-background-0);
+    --color-dark-card: var(--theme-dark-canvas-background-1);
     --color-dark-panel: #0f3460;
-    --color-dark-text: #eeeeee;
-    --color-dark-text-muted: #aaaaaa;
+    --color-dark-text: var(--theme-dark-text-primary);
+    --color-dark-text-muted: var(--theme-dark-text-secondary);
     
-    /* Chart colour palette for multi-series graphs */
-    --chart-color-1: #1e3a8a;   /* Deep blue */
-    --chart-color-2: #ea580c;   /* Orange */
-    --chart-color-3: #3b82f6;   /* Bright blue */
-    --chart-color-4: #10b981;   /* Emerald */
-    --chart-color-5: #f59e0b;   /* Amber */
-    --chart-color-6: #8b5cf6;   /* Purple */
-    --chart-color-7: #ec4899;   /* Pink */
-    --chart-color-8: #06b6d4;   /* Cyan */
-    --chart-color-9: #ef4444;   /* Red */
-    --chart-color-10: #14b8a6;  /* Teal */
+    /* Chart colour palette - Using GLA data visualization colors (light mode) */
+    --chart-color-1: var(--theme-light-data-blue);
+    --chart-color-2: var(--theme-light-data-orange);
+    --chart-color-3: var(--theme-light-data-pink);
+    --chart-color-4: var(--theme-light-data-green);
+    --chart-color-5: var(--theme-light-data-yellow);
+    --chart-color-6: var(--theme-light-data-purple);
+    --chart-color-7: var(--theme-light-data-darkpink);
+    --chart-color-8: var(--theme-light-data-turquoise);
+    --chart-color-9: var(--theme-light-data-red);
+    --chart-color-10: var(--global-color-static-gla-cyan);
 
-    /* Dark mode graph colours */
-    --chart-dark-color-1: #93c5fd;   /* Light blue */
-    --chart-dark-color-2: #fbbf24;   /* Light amber */
-    --chart-dark-color-3: #f472b6;   /* Light pink */
-    --chart-dark-color-4: #34d399;   /* Light emerald */
-    --chart-dark-color-5: #fbbf24;   /* Light amber */
-    --chart-dark-color-6: #a78bfa;   /* Light purple */
-    --chart-dark-color-7: #60a5fa;   /* Light blue */
-    --chart-dark-color-8: #22d3ee;   /* Light cyan */
-    --chart-dark-color-9: #f87171;   /* Light red */
-    --chart-dark-color-10: #2dd4bf;  /* Light teal */
+    /* Dark mode graph colours - Using GLA data colors for dark mode */
+    --chart-dark-color-1: var(--theme-dark-data-blue);
+    --chart-dark-color-2: var(--theme-dark-data-orange);
+    --chart-dark-color-3: var(--theme-dark-data-pink);
+    --chart-dark-color-4: var(--theme-dark-data-green);
+    --chart-dark-color-5: var(--theme-dark-data-yellow);
+    --chart-dark-color-6: var(--theme-dark-data-purple);
+    --chart-dark-color-7: var(--theme-dark-data-darkpink);
+    --chart-dark-color-8: var(--theme-dark-data-turquoise);
+    --chart-dark-color-9: var(--theme-dark-data-red);
+    --chart-dark-color-10: #22d3ee;
 }
+
+/* Dark mode variable overrides */
+body.dark-mode {
+    --color-background: var(--theme-dark-canvas-background-0);
+    --color-card-bg: var(--theme-dark-canvas-background-1);
+    --color-text: var(--theme-dark-text-primary);
+}
+
+/* Force metric cards to display in a row on medium+ screens */
+@media (min-width: 768px) {
+    .mb-4.g-3 {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 1rem !important;
+    }
+    
+    .mb-4.g-3 > div {
+        flex: 1 1 calc(33.333% - 1rem) !important;
+        max-width: calc(33.333% - 1rem) !important;
+    }
+}
+
+/* ========== SIDEBAR NAVIGATION ========== */
+
+/* Dashboard wrapper - contains sidebar + main content */
+.dashboard-wrapper {
+    display: flex;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Sidebar toggle button (hamburger) - controlled by JS */
+.sidebar-toggle-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    border: 2px solid var(--color-primary);
+    background: var(--theme-palette-grey-100, #192023);
+    color: var(--color-primary);
+    font-size: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 1002;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle-btn:hover {
+    background: var(--color-primary);
+    color: white;
+    transform: scale(1.05);
+}
+
+.sidebar-toggle-btn.hidden {
+    display: none;
+}
+
+.hamburger-icon {
+    line-height: 1;
+}
+
+/* Sidebar container */
+.sidebar-container {
+    flex-shrink: 0;
+    height: calc(100vh - 50px);
+    position: sticky;
+    top: 50px;
+    z-index: 1000;
+    transition: width 0.3s ease-in-out;
+    width: 320px;
+    overflow: hidden;
+}
+
+.sidebar-container.collapsed {
+    width: 0;
+}
+
+
+/* Sidebar panel */
+.sidebar {
+    width: 280px;
+    height: calc(100vh - 50px);
+    background: var(--theme-palette-grey-100, #192023);
+    border-right: 2px solid var(--color-primary);
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    transition: all 0.3s ease-in-out;
+    position: relative;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+/* All text elements in sidebar */
+.sidebar label,
+.sidebar .control-label {
+    color: #ffffff !important;
+}
+
+
+/* Sidebar header */
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #ffffff;
+}
+
+.sidebar-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #ffffff;
+    margin: 0;
+}
+
+.sidebar-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 32px;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.sidebar-close-btn:hover {
+    color: var(--color-secondary);
+    transform: rotate(90deg);
+}
+
+/* Theme toggle below clear button */
+.sidebar-theme-toggle-below-button {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+}
+
+/* Remove old theme toggle styling */
+.sidebar-theme-toggle {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    background: var(--color-background);
+    border-radius: 8px;
+    border: 1px solid var(--color-primary);
+}
+
+/* Button styling */
+.button-styling {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 40px;
+    padding: 4px 16px;
+    background-color: rgba(0, 0, 0, 0);
+    color: rgb(255, 255, 255);
+    border: 1px solid rgb(103, 110, 115);
+    border-radius: 0px;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 16px;
+    font-weight: 400;
+    text-align: center;
+    text-transform: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.button-styling:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgb(255, 255, 255);
+}
+
+.button-styling:active {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .button-styling {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgb(103, 110, 115);
+}
+
+body.dark-mode .button-styling:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgb(255, 255, 255);
+}
+
+/* Main content area */
+.main-content {
+    flex: 1;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* Responsive - mobile */
+@media (max-width: 768px) {
+    .sidebar-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 280px;
+        z-index: 1000;
+    }
+    
+    .sidebar-container.collapsed {
+        width: 280px;
+    }
+    
+    .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .sidebar-toggle-btn {
+        display: flex !important;
+    }
+}
+
+/* Dark mode sidebar */
+body.dark-mode .sidebar {
+    background: var(--theme-palette-grey-100, #192023);
+    /* Keep the same border color as light mode */
+}
+
+body.dark-mode .sidebar-toggle-btn {
+    background: var(--theme-palette-grey-100, #192023);
+    /* Keep the same border color as light mode */
+}
+
+body.dark-mode .sidebar-toggle-btn:hover {
+    background: var(--color-primary);
+}
+
+body.dark-mode .sidebar-theme-toggle {
+    background: var(--color-dark-bg);
+}
+
 
 /* Loading Spinner Overlay */
 .loading-overlay {
@@ -82,7 +352,7 @@
 /* Loading Text */
 .loading-text {
     color: white;
-    font-family: "Arial", sans-serif;
+    font-family: var(--font-family);
     font-size: 28px;
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
@@ -92,7 +362,7 @@
 
 .loading-subtext {
     color: rgba(255, 255, 255, 0.95);
-    font-family: "Arial", sans-serif;
+    font-family: var(--font-family);
     font-size: 16px;
     text-align: center;
     max-width: 350px;
@@ -128,7 +398,7 @@
 /* Card Styling */
 .metric-card {
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    border-radius: 12px !important;
+    border-radius: 0px !important;
 }
 
 .metric-card:hover {
@@ -139,14 +409,14 @@
 /* Control Panel */
 .control-panel {
     background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-    border-radius: 15px;
+    border-radius: 0px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     transition: box-shadow 0.3s ease;
 }
 
 /* Graph Containers */
 .graph-container {
-    border-radius: 15px;
+    border-radius: 0px;
     overflow: hidden;
     box-shadow: 0 6px 20px rgba(0,0,0,0.12);
     transition: box-shadow 0.3s ease, transform 0.3s ease;
@@ -168,29 +438,58 @@
 
 /* Custom Dropdown Styling */
 .Select-control {
-    border-radius: 8px !important;
-    border: 2px solid #e9ecef !important;
+    height: 42px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    font-size: 16px !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+    color: rgb(255, 255, 255) !important;
+    line-height: 24px !important;
+    background-color: rgb(25, 32, 35) !important;
+    border-color: rgb(82, 89, 94) !important;
+    border-width: 1px !important;
+    border-radius: 4px !important;
+    padding: 0px 0px 0px 16px !important;
     transition: all 0.2s ease !important;
 }
 
 .Select-control:hover {
-    border-color: #1e3a8a !important;
+    border-color: var(--color-primary) !important;
+}
+
+/* Dropdown text, placeholder, and input styling */
+.Select-value-label,
+.Select-placeholder,
+.Select-input > input {
+    color: rgb(255, 255, 255) !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 16px !important;
+    line-height: 24px !important;
+}
+
+.Select-menu-outer {
+    background-color: rgb(25, 32, 35) !important;
+    border-color: rgb(82, 89, 94) !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.Select-option {
+    color: rgb(255, 255, 255) !important;
+    font-size: 16px !important;
+    padding-left: 16px !important;
 }
 
 /* Dropdown Dark Mode Styling */
 body.dark-mode .Select-control {
     background-color: var(--color-dark-card) !important;
-    border-color: var(--color-dark-panel) !important;
+    /* Keep the same border color as light mode */
     color: var(--color-dark-text) !important;
-}
-
-body.dark-mode .Select-control:hover {
-    border-color: var(--color-accent) !important;
 }
 
 body.dark-mode .Select-menu-outer {
     background-color: var(--color-dark-card) !important;
-    border-color: var(--color-dark-panel) !important;
+    /* Keep the same border color as light mode */
 }
 
 body.dark-mode .Select-option {
@@ -223,7 +522,7 @@ body.dark-mode .Select-arrow {
 body.dark-mode .dash-dropdown .Select-control,
 body.dark-mode div[class*="dropdown"] .Select-control {
     background-color: var(--color-dark-card) !important;
-    border-color: var(--color-dark-panel) !important;
+    /* Keep the same border color as light mode */
 }
 
 body.dark-mode .dash-dropdown .Select-value,
@@ -301,6 +600,7 @@ body.dark-mode [class*="dropdownIndicator"] svg {
 
 /* ========== DARK MODE STYLES ========== */
 body {
+    font-family: var(--font-family);
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -448,35 +748,45 @@ button:focus,
 
 /* Banner Header */
 .banner-header {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-    padding: 30px 20px;
-    margin-bottom: 30px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    border-radius: 0 0 15px 15px;
-    margin-top: -25px;
-    margin-left: -25px;
-    margin-right: -25px;
-    animation: fadeIn 1s ease-in;
+    background: #0e1316;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px 0 80px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1001;
 }
 
-.banner-logo {
-    height: 210px;
-    filter: brightness(0) invert(1);
-    animation: fadeIn 1s ease-in;
+.banner-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 640px;
+    max-width: 640px;
 }
 
 .banner-title {
-    font-size: 2.8rem;
-    font-weight: 800;
-    color: white;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    letter-spacing: -0.5px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    white-space: nowrap;
 }
 
 .banner-subtitle {
-    font-weight: 300;
-    color: rgba(255,255,255,0.95);
-    letter-spacing: 0.5px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #ffffff;
+    margin: 0;
+    white-space: nowrap;
 }
 
 /* Theme Toggle Switch */
@@ -490,7 +800,7 @@ button:focus,
 .theme-toggle-label {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
     margin: 0;
     cursor: pointer;
     user-select: none;
@@ -498,9 +808,10 @@ button:focus,
 
 .theme-icon-light,
 .theme-icon-dark {
-    font-size: 20px;
-    opacity: 0.5;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    font-size: 18px;
+    color: #8a8f94;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
     flex-shrink: 0;
 }
 
@@ -524,25 +835,25 @@ button:focus,
 }
 
 .theme-toggle-switch .form-switch .form-check-input {
-    width: 56px !important;
-    height: 28px !important;
+    width: 48px !important;
+    height: 24px !important;
     cursor: pointer;
-    background-color: #ffd700 !important;
-    border: 2px solid rgba(255, 255, 255, 0.8) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: none !important;
     margin: 0 !important;
     position: relative;
     transition: background-color 0.3s ease;
 }
 
 .theme-toggle-switch .form-switch .form-check-input:checked {
-    background-color: #1e3a8a !important;
-    border-color: rgba(255, 255, 255, 0.9) !important;
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
 }
 
 .theme-toggle-switch .form-switch .form-check-input:focus {
-    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.3) !important;
-    border-color: white !important;
+    box-shadow: none !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
     outline: none !important;
 }
 
@@ -552,7 +863,7 @@ button:focus,
 
 .theme-toggle-switch .form-check-input:focus-visible {
     outline: none !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: none !important;
 }
 
 .theme-toggle-switch .form-check-label {
@@ -562,12 +873,10 @@ button:focus,
 /* Icon opacity changes based on mode */
 body:not(.dark-mode) .theme-icon-light {
     opacity: 1;
-    transform: scale(1.1);
 }
 
 body.dark-mode .theme-icon-dark {
     opacity: 1;
-    transform: scale(1.1);
 }
 
 /* Control Panel Labels */

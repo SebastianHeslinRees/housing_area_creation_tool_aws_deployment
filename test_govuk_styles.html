@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOV.UK Styling Test</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@4.7.0/govuk/all.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .section {
+            padding: 20px;
+            border: 2px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="govuk-width-container">
+        <h1 class="govuk-heading-xl">GOV.UK Frontend Style Test</h1>
+        
+        <h2 class="govuk-heading-l">Typography</h2>
+        <p class="govuk-body">This is body text using GOV.UK styling</p>
+        <p class="govuk-body-l">This is large body text</p>
+        <p class="govuk-body-s">This is small body text</p>
+        
+        <h2 class="govuk-heading-l">Buttons</h2>
+        <button class="govuk-button">Primary Button</button>
+        <button class="govuk-button govuk-button--secondary">Secondary Button</button>
+        <button class="govuk-button govuk-button--warning">Warning Button</button>
+        
+        <h2 class="govuk-heading-l">Form Elements</h2>
+        <div class="govuk-form-group">
+            <label class="govuk-label" for="input-example">
+                Label text
+            </label>
+            <input class="govuk-input" id="input-example" name="input-example" type="text">
+        </div>
+        
+        <div class="govuk-form-group">
+            <label class="govuk-label" for="select-example">
+                Select dropdown
+            </label>
+            <select class="govuk-select" id="select-example" name="select-example">
+                <option value="1">Option 1</option>
+                <option value="2">Option 2</option>
+                <option value="3">Option 3</option>
+            </select>
+        </div>
+        
+        <h2 class="govuk-heading-l">Notifications</h2>
+        <div class="govuk-notification-banner" role="region" aria-labelledby="govuk-notification-banner-title">
+            <div class="govuk-notification-banner__header">
+                <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">
+                    Important
+                </h2>
+            </div>
+            <div class="govuk-notification-banner__content">
+                <p class="govuk-notification-banner__heading">
+                    This is a notification banner
+                </p>
+            </div>
+        </div>
+        
+        <h2 class="govuk-heading-l">Panel (Success)</h2>
+        <div class="govuk-panel govuk-panel--confirmation">
+            <h1 class="govuk-panel__title">
+                Application complete
+            </h1>
+            <div class="govuk-panel__body">
+                Your reference number<br><strong>HDJ2123F</strong>
+            </div>
+        </div>
+        
+        <h2 class="govuk-heading-l">Table</h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Month</th>
+                    <th scope="col" class="govuk-table__header">Rate</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">January</td>
+                    <td class="govuk-table__cell">85</td>
+                </tr>
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">February</td>
+                    <td class="govuk-table__cell">91</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

@@ -66,12 +66,12 @@ body.dark-mode {
     .mb-4.g-3 {
         display: flex !important;
         flex-wrap: wrap !important;
-        gap: 1rem !important;
+        gap: 1.5rem !important;
     }
     
     .mb-4.g-3 > div {
-        flex: 1 1 calc(33.333% - 1rem) !important;
-        max-width: calc(33.333% - 1rem) !important;
+        flex: 1 1 calc(33.333% - 1.5rem) !important;
+        max-width: calc(33.333% - 1.5rem) !important;
     }
 }
 
@@ -87,14 +87,14 @@ body.dark-mode {
 /* Sidebar toggle button (hamburger) - controlled by JS */
 .sidebar-toggle-btn {
     position: fixed;
-    top: 20px;
-    left: 20px;
+    top: 50px;
+    left: 0px;
     width: 50px;
     height: 50px;
-    border-radius: 8px;
-    border: 2px solid var(--color-primary);
+    border-radius: 0px;
+    border: none;
     background: var(--theme-palette-grey-100, #192023);
-    color: var(--color-primary);
+    color: #ffffff;
     font-size: 28px;
     cursor: pointer;
     display: flex;
@@ -142,7 +142,7 @@ body.dark-mode {
     height: calc(100vh - 50px);
     background: var(--theme-palette-grey-100, #192023);
     border-right: 2px solid var(--color-primary);
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 4px 0 12px lab(53.23% 80.11 67.22 / 0.1);
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
@@ -399,6 +399,8 @@ body.dark-mode .sidebar-theme-toggle {
 .metric-card {
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     border-radius: 0px !important;
+    border: 1px solid #d6d8da !important;
+    margin-bottom: 1.5rem;
 }
 
 .metric-card:hover {
@@ -410,16 +412,20 @@ body.dark-mode .sidebar-theme-toggle {
 .control-panel {
     background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
     border-radius: 0px;
+    border: 1px solid #d6d8da;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     transition: box-shadow 0.3s ease;
+    margin-bottom: 1.5rem;
 }
 
 /* Graph Containers */
 .graph-container {
     border-radius: 0px;
+    border: 1px solid #d6d8da;
     overflow: hidden;
     box-shadow: 0 6px 20px rgba(0,0,0,0.12);
     transition: box-shadow 0.3s ease, transform 0.3s ease;
+    margin-bottom: 1.5rem;
 }
 
 .graph-container:hover {
@@ -434,6 +440,24 @@ body.dark-mode .sidebar-theme-toggle {
     background-clip: text;
     font-weight: 800;
     letter-spacing: -0.5px;
+}
+
+/* Dashboard Heading */
+.dashboard-heading {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 18px;
+    font-weight: 700;
+    font-style: normal;
+    color: rgb(53, 61, 67);
+    text-decoration: none;
+    text-transform: none;
+    line-height: 28.0008px;
+    margin-top: 90px;
+    margin-bottom: 24px;
+}
+
+body.dark-mode .dashboard-heading {
+    color: var(--color-dark-text);
 }
 
 /* Custom Dropdown Styling */
@@ -753,7 +777,7 @@ button:focus,
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    padding: 0 20px 0 80px;
+    padding: 0 20px 0 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     width: 100%;
     position: fixed;
@@ -839,16 +863,36 @@ button:focus,
     height: 24px !important;
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.2) !important;
+    background-image: none !important;
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
     box-shadow: none !important;
     margin: 0 !important;
     position: relative;
     transition: background-color 0.3s ease;
+    filter: none !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input::before {
+    display: none !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input::after {
+    display: none !important;
 }
 
 .theme-toggle-switch .form-switch .form-check-input:checked {
     background-color: rgba(255, 255, 255, 0.3) !important;
+    background-image: none !important;
     border-color: rgba(255, 255, 255, 0.4) !important;
+    filter: none !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input:checked::before {
+    display: none !important;
+}
+
+.theme-toggle-switch .form-switch .form-check-input:checked::after {
+    display: none !important;
 }
 
 .theme-toggle-switch .form-switch .form-check-input:focus {

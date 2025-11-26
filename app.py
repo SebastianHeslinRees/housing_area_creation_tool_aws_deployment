@@ -332,6 +332,9 @@ app.layout = html.Div([
         
         # Main content container
         dbc.Container([
+            # Dashboard Heading
+            html.H3("Dashboard - UK", id="dashboard-heading", className="dashboard-heading"),
+            
             # Summary Metrics
             dbc.Row([
                 dbc.Col([

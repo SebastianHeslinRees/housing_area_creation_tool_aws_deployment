@@ -323,15 +323,16 @@ app.layout = html.Div([
             # Banner header
             html.Div([
                 html.Div([
-                    html.H1("UK Fertility Rate Dashboard", className="banner-title"),
-                    html.H5("Analysis of Total & Age-Specific Fertility Rates (1993-2023)",
-                           className="banner-subtitle")
+                    html.H1("UK Fertility Rate Dashboard", className="banner-title")
                 ], className="banner-content")
             ], className="banner-header")
         ]),
         
         # Main content container
         dbc.Container([
+            # Red divider line above dashboard heading
+            html.Hr(className="footer-divider"),
+            
             # Dashboard Heading
             html.H3("Dashboard - UK", id="dashboard-heading", className="dashboard-heading"),
             
@@ -468,7 +469,7 @@ app.layout = html.Div([
                     ], className="text-center footer-credits")
                 ], width=12)  # Close dbc.Col
             ])  # Close dbc.Row
-        ], fluid=True, className="main-container")  # Close dbc.Container
+        ], fluid=True, className="main-container dashboard-grey-line")  # Close dbc.Container
         
     ], id="main-content", className="main-content")  # Close main content div
     
@@ -574,7 +575,7 @@ def update_tfr_map(selected_year, dark_mode_data):
         
         # Dark mode styling
         title_color = '#eeeeee' if is_dark else COLORS['primary']
-        paper_bg = '#16213e' if is_dark else 'white'
+        paper_bg = 'rgb(14, 19, 22)' if is_dark else 'white'
         
         fig.update_layout(
             title=dict(
@@ -645,7 +646,7 @@ def update_asfr_map(selected_year, selected_age, dark_mode_data):
         
         # Dark mode styling
         title_color = '#eeeeee' if is_dark else COLORS['primary']
-        paper_bg = '#16213e' if is_dark else 'white'
+        paper_bg = 'rgb(14, 19, 22)' if is_dark else 'white'
         
         fig.update_layout(
             title=dict(
@@ -698,16 +699,20 @@ def update_tfr_trend(selected_lads, dark_mode_data):
                 lad_data['year_int'] = lad_data['year'].astype(int)
                 lad_data = lad_data.sort_values('year_int')
                 
-                marker_line_color = '#1a1a2e' if is_dark else 'white'
+                # First LAD gets thicker line (like Variable A), others get thinner (like Variable B)
+                line_width = 3 if idx == 0 else 2
                 
                 fig.add_trace(
                     go.Scatter(
                         x=lad_data['year_int'],
                         y=lad_data['tfr'],
-                        mode='lines+markers',
+                        mode='lines',
                         name=lad,
-                        line=dict(color=active_chart_colors[idx % len(active_chart_colors)], width=3),
-                        marker=dict(size=6, line=dict(color=marker_line_color, width=1))
+                        line=dict(
+                            color=active_chart_colors[idx % len(active_chart_colors)], 
+                            width=line_width
+                        ),
+                        hovertemplate='%{y:.2f}<extra></extra>'
                     )
                 )
         
@@ -716,7 +721,7 @@ def update_tfr_trend(selected_lads, dark_mode_data):
         uk_avg_by_year['year_int'] = uk_avg_by_year['year'].astype(int)
         uk_avg_by_year = uk_avg_by_year.sort_values('year_int')
         
-        avg_line_color = '#888888' if is_dark else 'gray'
+        avg_line_color = '#b0b0b0' if is_dark else '#cccccc'
         
         fig.add_trace(
             go.Scatter(
@@ -724,8 +729,9 @@ def update_tfr_trend(selected_lads, dark_mode_data):
                 y=uk_avg_by_year['tfr'],
                 mode='lines',
                 name='UK Average',
-                line=dict(color=avg_line_color, width=3, dash='dash'),
-                opacity=0.8
+                line=dict(color=avg_line_color, width=2),
+                opacity=0.7,
+                hovertemplate='%{y:.2f}<extra></extra>'
             )
         )
         
@@ -734,33 +740,56 @@ def update_tfr_trend(selected_lads, dark_mode_data):
                      annotation_text="UK Replacement Level (2.1)", 
                      annotation_font=dict(color=COLORS['warning'], size=12))
         
-        title_text = f"TFR Trend Analysis: {', '.join(selected_lads[:3])}"
-        if len(selected_lads) > 3:
-            title_text += f" (+{len(selected_lads)-3} more)"
+        # Create clean title like reference image
+        if len(selected_lads) == 1:
+            main_title = f"In {selected_lads[0]}, Total Fertility Rate trend over time"
+        elif len(selected_lads) == 2:
+            main_title = f"In {selected_lads[0]} and {selected_lads[1]}, Total Fertility Rate trends compared"
+        else:
+            main_title = f"Total Fertility Rate trends across {len(selected_lads)} areas"
         
-        # Dark mode styling
-        title_color = '#eeeeee' if is_dark else COLORS['primary']
-        axis_color = '#aaaaaa' if is_dark else COLORS['text']
-        plot_bg = 'rgba(26,26,46,0.8)' if is_dark else 'rgba(248,249,250,0.8)'
-        paper_bg = '#16213e' if is_dark else 'white'
-        legend_bg = 'rgba(15,52,96,0.8)' if is_dark else 'rgba(255,255,255,0.8)'
-        grid_color = 'rgba(255,255,255,0.1)' if is_dark else 'rgba(0,0,0,0.1)'
+        # Get year range from data
+        years = tfr_clean['year'].astype(int)
+        year_range = f"{years.min()} to {years.max()}"
+        
+        title_text = f"{main_title}<br><sub style='font-size: 12px; color: #6e6e6e;'>Total Fertility Rate values, {year_range}</sub>"
+        
+        # Dark mode styling - clean, minimal look like reference image
+        title_color = '#eeeeee' if is_dark else '#2a2d35'
+        axis_color = '#999999' if is_dark else '#6e6e6e'
+        plot_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
+        paper_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
+        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(14, 19, 22, 0.9)'
+        grid_color = 'rgba(255,255,255,0.08)' if is_dark else '#e5e5e5'
         
         fig.update_layout(
             title=dict(
                 text=title_text,
-                x=0.5,
+                x=0.02,
+                xanchor='left',
                 font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
             xaxis_title="Year",
             yaxis_title="Total Fertility Rate",
             xaxis=dict(
                 color=axis_color,
-                gridcolor=grid_color
+                gridcolor=grid_color,
+                showgrid=True,
+                zeroline=False,
+                showline=True,
+                linewidth=1,
+                linecolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)',
+                ticks='outside',
+                tickcolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)'
             ),
             yaxis=dict(
                 color=axis_color,
-                gridcolor=grid_color
+                gridcolor=grid_color,
+                showgrid=True,
+                zeroline=False,
+                showline=False,
+                ticks='outside',
+                tickcolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)'
             ),
             height=400,
             hovermode='x unified',
@@ -768,14 +797,17 @@ def update_tfr_trend(selected_lads, dark_mode_data):
             paper_bgcolor=paper_bg,
             showlegend=True,
             legend=dict(
-                orientation="v",
+                orientation="h",
                 yanchor="top",
-                y=0.99,
+                y=1.12,
                 xanchor="left",
-                x=0.01,
+                x=0.0,
                 bgcolor=legend_bg,
-                font=dict(color=title_color)
-            )
+                font=dict(color=title_color, size=11),
+                bordercolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)',
+                borderwidth=0
+            ),
+            margin=dict(l=60, r=30, t=80, b=50)
         )
         
         return fig
@@ -817,14 +849,21 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
                 lad_year_data['age_int'] = lad_year_data['age'].astype(int)
                 lad_year_data = lad_year_data.sort_values('age_int')
                 
+                # First LAD gets thicker line, others get thinner
+                line_width = 3 if idx == 0 else 2
+                
                 # LAD ASFR by age 
                 fig.add_trace(
                     go.Scatter(
                         x=lad_year_data['age_int'],
                         y=lad_year_data['fertility_rate'],
-                        mode='lines',  # Changed from 'lines+markers' to 'lines'
+                        mode='lines',
                         name=lad,
-                        line=dict(color=active_chart_colors[idx % len(active_chart_colors)], width=3)
+                        line=dict(
+                            color=active_chart_colors[idx % len(active_chart_colors)], 
+                            width=line_width
+                        ),
+                        hovertemplate='%{y:.3f}<extra></extra>'
                     )
                 )
         
@@ -833,7 +872,7 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
         uk_avg_age['age_int'] = uk_avg_age['age'].astype(int)
         uk_avg_age = uk_avg_age.sort_values('age_int')
         
-        avg_line_color = '#888888' if is_dark else 'gray'
+        avg_line_color = '#b0b0b0' if is_dark else '#cccccc'
         
         fig.add_trace(
             go.Scatter(
@@ -841,27 +880,35 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
                 y=uk_avg_age['fertility_rate'],
                 mode='lines',
                 name='UK Average',
-                line=dict(color=avg_line_color, width=3, dash='dash'),
-                opacity=0.8
+                line=dict(color=avg_line_color, width=2),
+                opacity=0.7,
+                hovertemplate='%{y:.3f}<extra></extra>'
             )
         )
         
-        title_text = f"ASFR by Age ({selected_year}): {', '.join(selected_lads[:3])}"
-        if len(selected_lads) > 3:
-            title_text += f" (+{len(selected_lads)-3} more)"
+        # Create clean title like reference image
+        if len(selected_lads) == 1:
+            main_title = f"In {selected_lads[0]}, Age-Specific Fertility Rate by age group"
+        elif len(selected_lads) == 2:
+            main_title = f"In {selected_lads[0]} and {selected_lads[1]}, Age-Specific Fertility Rates compared"
+        else:
+            main_title = f"Age-Specific Fertility Rates across {len(selected_lads)} areas"
         
-        # Dark mode styling
-        title_color = '#eeeeee' if is_dark else COLORS['primary']
-        axis_color = '#aaaaaa' if is_dark else COLORS['text']
-        plot_bg = 'rgba(26,26,46,0.8)' if is_dark else 'rgba(248,249,250,0.8)'
-        paper_bg = '#16213e' if is_dark else 'white'
-        legend_bg = 'rgba(15,52,96,0.8)' if is_dark else 'rgba(255,255,255,0.8)'
-        grid_color = 'rgba(255,255,255,0.1)' if is_dark else 'rgba(0,0,0,0.1)'
+        title_text = f"{main_title}<br><sub style='font-size: 12px; color: #6e6e6e;'>Fertility rate by age, year {selected_year}</sub>"
+        
+        # Dark mode styling - clean, minimal look like reference image
+        title_color = '#eeeeee' if is_dark else '#2a2d35'
+        axis_color = '#999999' if is_dark else '#6e6e6e'
+        plot_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
+        paper_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
+        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(14, 19, 22, 0.9)'
+        grid_color = 'rgba(255,255,255,0.08)' if is_dark else '#e5e5e5'
         
         fig.update_layout(
             title=dict(
                 text=title_text,
-                x=0.5,
+                x=0.02,
+                xanchor='left',
                 font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
             xaxis_title="Age",
@@ -872,11 +919,23 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
                 dtick=5,
                 range=[14, 50],
                 color=axis_color,
-                gridcolor=grid_color
+                gridcolor=grid_color,
+                showgrid=True,
+                zeroline=False,
+                showline=True,
+                linewidth=1,
+                linecolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)',
+                ticks='outside',
+                tickcolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)'
             ),
             yaxis=dict(
                 color=axis_color,
-                gridcolor=grid_color
+                gridcolor=grid_color,
+                showgrid=True,
+                zeroline=False,
+                showline=False,
+                ticks='outside',
+                tickcolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)'
             ),
             height=400,
             hovermode='x unified',
@@ -884,14 +943,17 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
             paper_bgcolor=paper_bg,
             showlegend=True,
             legend=dict(
-                orientation="v",
+                orientation="h",
                 yanchor="top",
-                y=0.99,
+                y=1.12,
                 xanchor="left",
-                x=0.01,
+                x=0.0,
                 bgcolor=legend_bg,
-                font=dict(color=title_color)
-            )
+                font=dict(color=title_color, size=11),
+                bordercolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)',
+                borderwidth=0
+            ),
+            margin=dict(l=60, r=30, t=80, b=50)
         )
         
         return fig

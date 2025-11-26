@@ -324,7 +324,7 @@ body.dark-mode .sidebar-theme-toggle {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%);
+    background: linear-gradient(135deg, #2a2d35 0%, #53565e 100%);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -403,6 +403,10 @@ body.dark-mode .sidebar-theme-toggle {
     margin-bottom: 1.5rem;
 }
 
+.metric-card .card-body {
+    padding-left: 24px !important;
+}
+
 .metric-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
@@ -452,12 +456,25 @@ body.dark-mode .sidebar-theme-toggle {
     text-decoration: none;
     text-transform: none;
     line-height: 28.0008px;
-    margin-top: 90px;
+    margin-top: 32px;
     margin-bottom: 24px;
 }
 
 body.dark-mode .dashboard-heading {
     color: var(--color-dark-text);
+}
+
+/* Dashboard Grey Line */
+.dashboard-grey-line {
+    border-top-width: 2px;
+    border-top-style: solid;
+    border-top-color: rgb(214, 216, 218);
+    padding-top: 16px;
+    margin-top: 32px;
+}
+
+body.dark-mode .dashboard-grey-line {
+    border-top-color: rgba(214, 216, 218, 0.2);
 }
 
 /* Custom Dropdown Styling */
@@ -629,30 +646,32 @@ body {
 }
 
 body.dark-mode {
-    background-color: #1a1a2e !important;
+    background-color: #192023 !important;
     color: #eee !important;
 }
 
 /* Dark mode: Container background */
 body.dark-mode .container-fluid {
-    background-color: #1a1a2e !important;
+    background-color: #192023 !important;
 }
 
 /* Dark mode: Cards */
 body.dark-mode .card {
-    background-color: #16213e !important;
-    border-color: #0f3460 !important;
+    background-color: rgb(14, 19, 22) !important;
+    border-color: #d6d8da !important;
     color: #eee !important;
 }
 
 body.dark-mode .metric-card {
-    background-color: #16213e !important;
+    background-color: rgb(14, 19, 22) !important;
     box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+    border-color: #d6d8da !important;
 }
 
 /* Dark mode: Control panel */
 body.dark-mode .control-panel {
-    background: linear-gradient(145deg, #16213e 0%, #0f3460 100%) !important;
+    background: rgb(14, 19, 22) !important;
+    border-color: #d6d8da !important;
 }
 
 /* Dark mode: Text */
@@ -696,20 +715,22 @@ body.dark-mode .Select-option:hover {
 
 /* Dark mode: Graph containers */
 body.dark-mode .graph-container {
-    background-color: #16213e !important;
+    background-color: rgb(14, 19, 22) !important;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
+    border-color: #d6d8da !important;
 }
 
 /* Dark mode: Card headers */
 body.dark-mode .card-header {
-    background-color: #0f3460 !important;
+    background-color: rgb(14, 19, 22) !important;
     color: #eee !important;
+    border-color: #d6d8da !important;
 }
 
 /* Dark mode: Alert/About section */
 body.dark-mode .alert {
-    background-color: rgba(30, 58, 138, 0.3) !important;
-    border-color: #1e3a8a !important;
+    background-color: rgb(14, 19, 22) !important;
+    border-color: #d6d8da !important;
     color: #ddd !important;
 }
 
@@ -724,7 +745,7 @@ body.dark-mode a:hover {
 
 /* Dark mode: HR */
 body.dark-mode hr {
-    border-color: #0f3460 !important;
+    border-color: #d6d8da !important;
 }
 
 /* Dark mode: Theme button */
@@ -953,8 +974,10 @@ body.dark-mode .dashboard-controls-heading {
 
 /* Metric Card Titles */
 .metric-title {
-    color: var(--color-primary);
+    color: rgb(88, 88, 88);
     font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 12px;
 }
 
 body.dark-mode .metric-title {
@@ -962,33 +985,36 @@ body.dark-mode .metric-title {
 }
 
 .metric-value-primary {
-    color: var(--color-secondary);
+    color: rgb(53, 61, 67);
     font-weight: 700;
     font-size: 2.5rem;
+    margin-bottom: 8px;
 }
 
 body.dark-mode .metric-value-primary {
-    color: var(--color-secondary);
+    color: var(--color-dark-text);
 }
 
 .metric-value-accent {
-    color: var(--color-accent);
+    color: rgb(53, 61, 67);
     font-weight: 700;
     font-size: 2.5rem;
+    margin-bottom: 8px;
 }
 
 body.dark-mode .metric-value-accent {
-    color: var(--color-accent);
+    color: var(--color-dark-text);
 }
 
 .metric-value-warning {
-    color: var(--color-warning);
+    color: rgb(53, 61, 67);
     font-weight: 700;
     font-size: 2.5rem;
+    margin-bottom: 8px;
 }
 
 body.dark-mode .metric-value-warning {
-    color: var(--color-warning);
+    color: var(--color-dark-text);
 }
 
 /* Metric Card Styling */
@@ -997,7 +1023,7 @@ body.dark-mode .metric-value-warning {
 }
 
 body.dark-mode .metric-card-bg {
-    background-color: var(--color-dark-card);
+    background-color: rgb(14, 19, 22);
 }
 
 .metric-border-secondary {
@@ -1018,15 +1044,17 @@ body.dark-mode .metric-card-bg {
 /* Card Header Styling */
 .card-header-bg {
     background-color: var(--color-background);
+    padding-left: 24px !important;
 }
 
 body.dark-mode .card-header-bg {
-    background-color: var(--color-dark-panel);
+    background-color: rgb(14, 19, 22);
 }
 
 .card-header-title {
-    color: var(--color-primary);
+    color: rgb(88, 88, 88);
     font-weight: 600;
+    font-size: 16px;
 }
 
 body.dark-mode .card-header-title {
@@ -1035,13 +1063,19 @@ body.dark-mode .card-header-title {
 
 /* Footer Styles */
 .footer-divider {
-    border-color: var(--color-secondary);
+    border-color: #d6d8da;
     margin-top: 40px;
 }
 
+body.dark-mode .footer-divider {
+    border-color: #d6d8da;
+}
+
 .footer-alert-heading {
-    color: var(--color-primary);
-    font-weight: bold;
+    color: rgb(88, 88, 88);
+    font-weight: 600;
+    font-size: 16px;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 body.dark-mode .footer-alert-heading {
@@ -1049,7 +1083,10 @@ body.dark-mode .footer-alert-heading {
 }
 
 .footer-text {
-    color: var(--color-primary);
+    color: rgb(88, 88, 88);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 14px;
+    line-height: 1.6;
 }
 
 body.dark-mode .footer-text {
@@ -1057,48 +1094,59 @@ body.dark-mode .footer-text {
 }
 
 .footer-alert-bg {
-    background: linear-gradient(135deg, rgba(176, 193, 239, 0.34) 0%, rgba(234, 88, 12, 0.08) 100%);
-    border-color: var(--color-primary);
-    border-width: 2px;
+    background: transparent;
+    border: 1px solid #d6d8da;
+    border-radius: 0px;
+    padding-left: 24px !important;
 }
 
 body.dark-mode .footer-alert-bg {
-    background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(234, 88, 12, 0.15) 100%);
-    border-color: var(--color-accent);
-    border-width: 2px;
+    background: transparent;
+    border-color: rgba(214, 216, 218, 0.2);
 }
 
 .footer-link {
-    color: var(--color-primary);
-    text-decoration: none;
+    color: rgb(88, 88, 88);
+    text-decoration: underline;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.footer-link:hover {
+    color: rgb(53, 61, 67);
 }
 
 body.dark-mode .footer-link {
+    color: var(--color-dark-text);
+}
+
+body.dark-mode .footer-link:hover {
     color: var(--color-accent);
 }
 
 /* Ensure footer links in alerts maintain correct color */
 .alert .footer-link {
-    color: var(--color-primary) !important;
+    color: rgb(88, 88, 88) !important;
 }
 
 body.dark-mode .alert .footer-link {
-    color: var(--color-accent) !important;
+    color: var(--color-dark-text) !important;
 }
 
 .footer-credits {
     font-size: 14px;
+    color: rgb(88, 88, 88);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 /* Main Container */
 .main-container {
-    padding: 25px;
+    padding: 40px;
     background-color: var(--color-background);
     min-height: 100vh;
 }
 
 body.dark-mode .main-container {
-    background-color: var(--color-dark-bg);
+    background-color: #192023;
 }
 
 /* Typography - Headings */

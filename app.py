@@ -31,13 +31,25 @@ def parse_css_colours(css_file='assets/styles.css'):
     colours = {}
     chart_colours = []
     chart_dark_colours = []
+    map_light_colours = []
+    map_dark_colours = []
     
     try:
         with open(css_file, 'r') as f:
             for line in f:
                 line = line.strip()
+                # Parse --map-color-light-* variables
+                if line.startswith('--map-color-light-') and ':' in line:
+                    parts = line.split(':')
+                    value = parts[1].split(';')[0].strip()
+                    map_light_colours.append(value)
+                # Parse --map-color-dark-* variables
+                elif line.startswith('--map-color-dark-') and ':' in line:
+                    parts = line.split(':')
+                    value = parts[1].split(';')[0].strip()
+                    map_dark_colours.append(value)
                 # Parse --chart-dark-color-* variables first (more specific)
-                if line.startswith('--chart-dark-color-') and ':' in line:
+                elif line.startswith('--chart-dark-color-') and ':' in line:
                     parts = line.split(':')
                     value = parts[1].split(';')[0].strip()
                     chart_dark_colours.append(value)
@@ -68,8 +80,12 @@ def parse_css_colours(css_file='assets/styles.css'):
     if not chart_dark_colours:
         chart_dark_colours = ['#93c5fd', '#fbbf24', '#60a5fa', '#34d399', '#fbbf24',
                              '#a78bfa', '#f472b6', '#22d3ee', '#f87171', '#2dd4bf']
+    if not map_light_colours:
+        map_light_colours = ['#e8f0f8', '#a8c5e4', '#6a8fc0', '#3d5a80', '#1e3a5f']
+    if not map_dark_colours:
+        map_dark_colours = ['#1e3a5f', '#4a6fa5', '#6a8fc0', '#a8c5e4', '#e8f0f8']
     
-    return colours, chart_colours, chart_dark_colours
+    return colours, chart_colours, chart_dark_colours, map_light_colours, map_dark_colours
 
 # ----------------- Data Loading Functions for Geojson in S3 -----------------
 def download_from_s3_if_needed(filename, bucket=S3_BUCKET, prefix=S3_PREFIX):
@@ -132,14 +148,14 @@ asfr_clean = asfr_clean.to_crs(epsg=4326)
 asfr_clean['geometry'] = asfr_clean['geometry'].simplify(tolerance=0.007, preserve_topology=True)
 asfr_clean = asfr_clean[asfr_clean.is_valid].reset_index(drop=True)
 
-# Convert to strings for serialisation
-years = sorted([str(year) for year in tfr_clean['year'].unique()])
+# Convert to integers and strings for components
+years = sorted([int(year) for year in tfr_clean['year'].unique()])
 ages = sorted([str(age) for age in asfr_clean['age'].unique()])
 lads = sorted(tfr_clean['LAD23NM'].unique())
 
-# Ensure string columns
-tfr_clean['year'] = tfr_clean['year'].astype(str)
-asfr_clean['year'] = asfr_clean['year'].astype(str) 
+# Ensure correct column types
+tfr_clean['year'] = tfr_clean['year'].astype(int)
+asfr_clean['year'] = asfr_clean['year'].astype(int) 
 asfr_clean['age'] = asfr_clean['age'].astype(str)
 
 print(f"  dashboard ready: {len(years)} years, {len(ages)} ages, {len(lads)} LADs")
@@ -222,7 +238,7 @@ app.index_string = '''
 '''
 
 # Note: Colour scheme is defined in assets/styles.css and parsed here to avoid duplication
-COLORS, CHART_COLORS, CHART_DARK_COLORS = parse_css_colours()
+COLORS, CHART_COLORS, CHART_DARK_COLORS, MAP_LIGHT_COLORS, MAP_DARK_COLORS = parse_css_colours()
 
 # Font configuration - Using Inter font from LDN-Viz theme
 FONT_FAMILY = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
@@ -253,15 +269,19 @@ app.layout = html.Div([
                 html.Button("×", id="sidebar-close", className="sidebar-close-btn")
             ], className="sidebar-header"),
             
-            # Year Dropdown
+            # Year Slider
             html.Div([
-                html.Label("Select Year", className="fw-bold mb-2 control-label"),
-                dcc.Dropdown(
+                html.Label("By year", className="fw-bold mb-2 control-label"),
+                html.Div(id='year-display', className="year-display"),
+                dcc.Slider(
                     id='year-dropdown',
-                    options=[{'label': year, 'value': year} for year in years],
+                    min=years[0],
+                    max=years[-1],
                     value=years[-1],
-                    clearable=False,
-                    className="dropdown-container"
+                    step=1,
+                    marks=None,
+                    tooltip={"placement": "bottom", "always_visible": False},
+                    className="range-slider"
                 )
             ], className="mb-4"),
             
@@ -381,7 +401,14 @@ app.layout = html.Div([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
-                            html.H5("Total Fertility Rate Map", className="text-center mb-0 card-header-title")
+                            html.Div([
+                                html.H5("Total Fertility Rate Map", className="text-center mb-0 card-header-title"),
+                                html.Div([
+                                    html.Button("Download as CSV", id="tfr-map-download-btn", className="download-csv-button"),
+                                    dcc.Download(id="tfr-map-download"),
+                                    html.Button("View description", id="tfr-map-desc-button", className="description-button")
+                                ], className="button-group-right")
+                            ], className="card-header-with-button")
                         ], className="card-header-bg"),
                         dbc.CardBody([
                             dcc.Graph(id='tfr-map', style={'height': '520px'})
@@ -393,7 +420,14 @@ app.layout = html.Div([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
-                            html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0 card-header-title")
+                            html.Div([
+                                html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0 card-header-title"),
+                                html.Div([
+                                    html.Button("Download as CSV", id="asfr-map-download-btn", className="download-csv-button"),
+                                    dcc.Download(id="asfr-map-download"),
+                                    html.Button("View description", id="asfr-map-desc-button", className="description-button")
+                                ], className="button-group-right")
+                            ], className="card-header-with-button")
                         ], className="card-header-bg"),
                         dbc.CardBody([
                             dcc.Graph(id='asfr-map', style={'height': '520px'})
@@ -408,52 +442,61 @@ app.layout = html.Div([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
-                            html.H5("TFR Trend Analysis", className="text-center mb-0 card-header-title")
+                            html.Div([
+                                html.H5("TFR Trend Analysis", className="text-center mb-0 card-header-title"),
+                                html.Div([
+                                    html.Button("Download as CSV", id="tfr-trend-download-btn", className="download-csv-button"),
+                                    dcc.Download(id="tfr-trend-download"),
+                                    html.Button("View description", id="tfr-trend-desc-button", className="description-button")
+                                ], className="button-group-right")
+                            ], className="card-header-with-button")
                         ], className="card-header-bg"),
                         dbc.CardBody([
                             dcc.Graph(id='tfr-trend', style={'height': '420px'})
                         ], style={'padding': '0'})
                     ], className="graph-container")
-                ], width=6),
+                ], width=12),
                 
                 # ASFR Trend 
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
-                            html.H5("ASFR Trend Analysis", className="text-center mb-0 card-header-title")
+                            html.Div([
+                                html.H5("ASFR Trend Analysis", className="text-center mb-0 card-header-title"),
+                                html.Div([
+                                    html.Button("Download as CSV", id="asfr-trend-download-btn", className="download-csv-button"),
+                                    dcc.Download(id="asfr-trend-download"),
+                                    html.Button("View description", id="asfr-trend-desc-button", className="description-button")
+                                ], className="button-group-right")
+                            ], className="card-header-with-button")
                         ], className="card-header-bg"),
                         dbc.CardBody([
                             dcc.Graph(id='asfr-trend', style={'height': '420px'})
                         ], style={'padding': '0'})
                     ], className="graph-container")
-                ], width=6)
+                ], width=12)
             ], className="mb-4"),
             
             # Footer
             dbc.Row([
                 dbc.Col([
                     html.Hr(className="footer-divider"),
-                    dbc.Alert([
-                        html.H5("About This Dashboard", className="alert-heading footer-alert-heading"),
-                        html.P([
-                                 "This dashboard provides analysis of UK fertility rates using the GLA Fertility Estimates. ",
-                                    "The code used to produce these estimates is available on ",
-                                    html.A("GitHub", 
-                                        href="https://github.com/Greater-London-Authority/fertility_rate_estimation/tree/main",
-                                        target="_blank",
-                                        className="footer-link"),
-                                html.Br(),
-                            html.Strong("TFR (Total Fertility Rate)"), " Total fertility rate (TFR) is a commonly used measure of overall fertility calculated as the sum of all age-specific fertility rates across all reproductive age groups. It represents the average number of children that a woman would have if she were to experience current age-specific fertility rates over the course of her life. For 2023, we estimate the TFR in Inner London to have been 1.16 compared to 1.54 in Outer London, and 1.41 for England as whole.",
-                                html.Br(),
-                            html.Strong("ASFR (Age-Specific Fertility Rate, 15 to 49)"), " measures the number of births per woman within specific age groups. For example, in England, the peak childbearing age is currently 32, with an ASFR of 0.107, meaning 107 babies were born for each 1,000 women aged 32.",
-                            "The UK replacement fertility rate is approximately ", html.Strong("2.1 children per woman"), "."
-                        ], className="mb-2 footer-text"),
-                        html.P([
-                            "Use the controls above to explore different years, ages, and local authorities. ",
-                            "Interactive maps maintain their fertility-specific colour schemes. ",
-                            "Compare trends across time and regions with visualisations. Visualisations can be easily downloaded using the camera icon in the top-right corner of each graph."
-                        ], className="mb-0 footer-text")
-                    ], className="mb-3 footer-alert-bg"),
+                    
+                    # GLA City Intelligence Unit Logo
+                    html.Div([
+                        html.Img(
+                            id="gla-logo-light",
+                            src="https://greater-london-authority.github.io/ldn-viz-tools/iframe.html?globals=theme%3Alight&args=&id=ui-components-logos--ciu&viewMode=story",
+                            className="gla-logo gla-logo-light",
+                            alt="GLA City Intelligence Unit"
+                        ),
+                        html.Img(
+                            id="gla-logo-dark",
+                            src="https://greater-london-authority.github.io/ldn-viz-tools/iframe.html?globals=theme%3Adark&args=&id=ui-components-logos--ciu&viewMode=story",
+                            className="gla-logo gla-logo-dark",
+                            alt="GLA City Intelligence Unit"
+                        )
+                    ], className="text-center mb-3 gla-logo-container"),
                     
                     html.P([
                         "GLA Fertility Dashboard | Data: ",
@@ -469,7 +512,44 @@ app.layout = html.Div([
                     ], className="text-center footer-credits")
                 ], width=12)  # Close dbc.Col
             ])  # Close dbc.Row
-        ], fluid=True, className="main-container dashboard-grey-line")  # Close dbc.Container
+        ], fluid=True, className="main-container dashboard-grey-line"),  # Close dbc.Container
+        
+        # Modals for descriptions
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Description"), close_button=True),
+            dbc.ModalBody([
+                html.P("This map shows the Total Fertility Rate (TFR) across UK local authorities. TFR is a commonly used measure of overall fertility calculated as the sum of all age-specific fertility rates across all reproductive age groups. It represents the average number of children that a woman would have if she were to experience current age-specific fertility rates over the course of her life. For 2023, we estimate the TFR in Inner London to have been 1.16 compared to 1.54 in Outer London, and 1.41 for England as whole."),
+                html.Br(),
+                html.P("All visualisations can be easily downloaded using the camera icon in the top-right corner of each graph.")
+            ])
+        ], id="tfr-map-modal", is_open=False, className="description-modal", centered=True, backdrop=True),
+        
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Description"), close_button=True),
+            dbc.ModalBody([
+                html.P("This map shows the ASFR (Age-Specific Fertility Rate, 15 to 49) across UK local authorities for the selected age group. ASFR measures the number of births per woman within specific age groups. For example, in England, the peak childbearing age is currently 32, with an ASFR of 0.107, meaning 107 babies were born for each 1,000 women aged 32.The UK replacement fertility rate is approximately 2.1 children per woman."),
+                html.Br(),
+                html.P("All visualisations can be easily downloaded using the camera icon in the top-right corner of each graph.")
+            ])
+        ], id="asfr-map-modal", is_open=False, className="description-modal", centered=True, backdrop=True),
+        
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Description"), close_button=True),
+            dbc.ModalBody([
+                html.P("This chart shows how the Total Fertility Rate has changed over time for the selected local authorities. You can compare trends across different regions and observe temporal patterns in fertility rates."),
+                html.Br(),
+                html.P("All visualisations can be easily downloaded using the camera icon in the top-right corner of each graph.")
+            ])
+        ], id="tfr-trend-modal", is_open=False, className="description-modal", centered=True, backdrop=True),
+        
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Description"), close_button=True),
+            dbc.ModalBody([
+                html.P("This chart shows how the Age-Specific Fertility Rate has changed over time for the selected age group and local authorities. Track how fertility patterns for specific age groups have evolved across different regions."),
+                html.Br(),
+                html.P("All visualisations can be easily downloaded using the camera icon in the top-right corner of each graph.")
+            ])
+        ], id="asfr-trend-modal", is_open=False, className="description-modal", centered=True, backdrop=True)
         
     ], id="main-content", className="main-content")  # Close main content div
     
@@ -534,6 +614,16 @@ def clear_selections(n_clicks):
         return []
     return ["Manchester"]
 
+# Update year display callback
+@app.callback(
+    Output('year-display', 'children'),
+    [Input('year-dropdown', 'value')]
+)
+def update_year_display(year):
+    if year:
+        return str(year)
+    return ""
+
 #   TFR map (keeping RdYlBu_r colour scheme)
 @app.callback(
     Output('tfr-map', 'figure'),
@@ -554,8 +644,26 @@ def update_tfr_map(selected_year, dark_mode_data):
             return go.Figure().add_annotation(text="No data available for selected year", 
                                            showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
-        # Choose mapbox style based on theme
-        mapbox_style = 'carto-darkmatter' if is_dark else 'carto-positron'
+        # Choose mapbox style and color scale based on theme
+        mapbox_style = 'carto-darkmatter' if is_dark else 'white-bg'
+        
+        # Color scale from CSS variables
+        if is_dark:
+            color_scale = [
+                [0.0, MAP_DARK_COLORS[0]],
+                [0.3, MAP_DARK_COLORS[1]],
+                [0.6, MAP_DARK_COLORS[2]],
+                [0.8, MAP_DARK_COLORS[3]],
+                [1.0, MAP_DARK_COLORS[4]]
+            ]
+        else:
+            color_scale = [
+                [0.0, MAP_LIGHT_COLORS[0]],
+                [0.3, MAP_LIGHT_COLORS[1]],
+                [0.6, MAP_LIGHT_COLORS[2]],
+                [0.8, MAP_LIGHT_COLORS[3]],
+                [1.0, MAP_LIGHT_COLORS[4]]
+            ]
         
         #maps
         fig = px.choropleth_mapbox(
@@ -566,25 +674,38 @@ def update_tfr_map(selected_year, dark_mode_data):
             color='tfr',
             hover_name='LAD23NM',
             hover_data={'tfr': ':.3f', 'LAD23CD': False},
-            color_continuous_scale='RdYlBu_r',  
+            color_continuous_scale=color_scale,
             mapbox_style=mapbox_style,
             zoom=5.3,
-            center={"lat": 54.5, "lon": -2.5},
-            opacity=0.85
+            center={"lat": 52.5408, "lon": -1.3728},
+            opacity=1.0
         )
         
+        # Update traces to add borders
+        fig.update_traces(
+            marker_line_width=1,
+            marker_line_color='white' if is_dark else '#d6d8da'
+        )
+        
+        # Create narrative title with subtitle
+        main_title = f"Across the UK, Total Fertility Rate varies by location"
+        title_text = f"{main_title}<br><sub style='font-size: 12px; color: #6e6e6e;'>Total Fertility Rate by Local Authority, year {selected_year}</sub>"
+        
         # Dark mode styling
-        title_color = '#eeeeee' if is_dark else COLORS['primary']
+        title_color = '#eeeeee' if is_dark else '#2a2d35'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else 'white'
+        plot_bg = '#000000' if is_dark else 'white'
         
         fig.update_layout(
             title=dict(
-                text=f"Total Fertility Rate ({selected_year})",
-                x=0.5,
-                font=dict(size=18, color=title_color, family=FONT_FAMILY_BOLD)
+                text=title_text,
+                x=0.02,
+                xanchor='left',
+                font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
-            margin={"r":5,"t":60,"l":5,"b":5},
+            margin={"r":5,"t":80,"l":5,"b":5},
             paper_bgcolor=paper_bg,
+            plot_bgcolor=plot_bg,
             coloraxis_colorbar=dict(
                 title="TFR",
                 title_font=dict(size=14, color=title_color),
@@ -625,8 +746,27 @@ def update_asfr_map(selected_year, selected_age, dark_mode_data):
             return go.Figure().add_annotation(text="No data available for selection", 
                                            showarrow=False, font=dict(size=16, color='#eeeeee' if is_dark else COLORS['text']))
         
-        # Choose mapbox style based on theme
-        mapbox_style = 'carto-darkmatter' if is_dark else 'carto-positron'
+        # Choose mapbox style and color scale based on theme
+        mapbox_style = 'carto-darkmatter' if is_dark else 'white-bg'
+        
+        # Color scale matching reference images
+        # Color scale from CSS variables
+        if is_dark:
+            color_scale = [
+                [0.0, MAP_DARK_COLORS[0]],
+                [0.3, MAP_DARK_COLORS[1]],
+                [0.6, MAP_DARK_COLORS[2]],
+                [0.8, MAP_DARK_COLORS[3]],
+                [1.0, MAP_DARK_COLORS[4]]
+            ]
+        else:
+            color_scale = [
+                [0.0, MAP_LIGHT_COLORS[0]],
+                [0.3, MAP_LIGHT_COLORS[1]],
+                [0.6, MAP_LIGHT_COLORS[2]],
+                [0.8, MAP_LIGHT_COLORS[3]],
+                [1.0, MAP_LIGHT_COLORS[4]]
+            ]
         
         #   ASFR map 
         fig = px.choropleth_mapbox(
@@ -637,25 +777,38 @@ def update_asfr_map(selected_year, selected_age, dark_mode_data):
             color='fertility_rate',
             hover_name='LAD23NM',
             hover_data={'fertility_rate': ':.4f', 'LAD23CD': False},
-            color_continuous_scale='Plasma',  
+            color_continuous_scale=color_scale,
             mapbox_style=mapbox_style,
             zoom=5.3,
-            center={"lat": 54.5, "lon": -2.5},
-            opacity=0.85
+            center={"lat": 52.5408, "lon": -1.3728},
+            opacity=1.0
         )
         
+        # Update traces to add borders
+        fig.update_traces(
+            marker_line_width=1,
+            marker_line_color='white' if is_dark else '#d6d8da'
+        )
+        
+        # Create narrative title with subtitle
+        main_title = f"Across the UK, Age-Specific Fertility Rate for age {selected_age} varies by location"
+        title_text = f"{main_title}<br><sub style='font-size: 12px; color: #6e6e6e;'>Age-Specific Fertility Rate for age {selected_age}, year {selected_year}</sub>"
+        
         # Dark mode styling
-        title_color = '#eeeeee' if is_dark else COLORS['primary']
+        title_color = '#eeeeee' if is_dark else '#2a2d35'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else 'white'
+        plot_bg = '#000000' if is_dark else 'white'
         
         fig.update_layout(
             title=dict(
-                text=f"ASFR Age {selected_age} ({selected_year})",
-                x=0.5,
-                font=dict(size=18, color=title_color, family=FONT_FAMILY_BOLD)
+                text=title_text,
+                x=0.02,
+                xanchor='left',
+                font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
-            margin={"r":5,"t":60,"l":5,"b":5},
+            margin={"r":5,"t":80,"l":5,"b":5},
             paper_bgcolor=paper_bg,
+            plot_bgcolor=plot_bg,
             coloraxis_colorbar=dict(
                 title=f"ASFR (Age {selected_age})",
                 title_font=dict(size=14, color=title_color),
@@ -759,7 +912,7 @@ def update_tfr_trend(selected_lads, dark_mode_data):
         axis_color = '#999999' if is_dark else '#6e6e6e'
         plot_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
-        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(14, 19, 22, 0.9)'
+        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(0, 0, 0, 0.9)'
         grid_color = 'rgba(255,255,255,0.08)' if is_dark else '#e5e5e5'
         
         fig.update_layout(
@@ -769,12 +922,10 @@ def update_tfr_trend(selected_lads, dark_mode_data):
                 xanchor='left',
                 font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
-            xaxis_title="Year",
-            yaxis_title="Total Fertility Rate",
             xaxis=dict(
                 color=axis_color,
                 gridcolor=grid_color,
-                showgrid=True,
+                showgrid=False,
                 zeroline=False,
                 showline=True,
                 linewidth=1,
@@ -800,8 +951,8 @@ def update_tfr_trend(selected_lads, dark_mode_data):
                 orientation="h",
                 yanchor="top",
                 y=1.12,
-                xanchor="left",
-                x=0.0,
+                xanchor="right",
+                x=1.0,
                 bgcolor=legend_bg,
                 font=dict(color=title_color, size=11),
                 bordercolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)',
@@ -901,7 +1052,7 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
         axis_color = '#999999' if is_dark else '#6e6e6e'
         plot_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
-        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(14, 19, 22, 0.9)'
+        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(0, 0, 0, 0.9)'
         grid_color = 'rgba(255,255,255,0.08)' if is_dark else '#e5e5e5'
         
         fig.update_layout(
@@ -911,8 +1062,6 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
                 xanchor='left',
                 font=dict(size=16, color=title_color, family=FONT_FAMILY_BOLD)
             ),
-            xaxis_title="Age",
-            yaxis_title="Age-Specific Fertility Rate",
             xaxis=dict(
                 tickmode='linear',
                 tick0=15,
@@ -920,7 +1069,7 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
                 range=[14, 50],
                 color=axis_color,
                 gridcolor=grid_color,
-                showgrid=True,
+                showgrid=False,
                 zeroline=False,
                 showline=True,
                 linewidth=1,
@@ -946,8 +1095,8 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
                 orientation="h",
                 yanchor="top",
                 y=1.12,
-                xanchor="left",
-                x=0.0,
+                xanchor="right",
+                x=1.0,
                 bgcolor=legend_bg,
                 font=dict(color=title_color, size=11),
                 bordercolor='#e5e5e5' if not is_dark else 'rgba(255,255,255,0.1)',
@@ -1167,6 +1316,100 @@ app.clientside_callback(
     [Input('sidebar-toggle', 'n_clicks'),
      Input('sidebar-close', 'n_clicks')]
 )
+
+# Modal callbacks
+@app.callback(
+    Output("tfr-map-modal", "is_open"),
+    Input("tfr-map-desc-button", "n_clicks"),
+    State("tfr-map-modal", "is_open"),
+)
+def toggle_tfr_map_modal(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("asfr-map-modal", "is_open"),
+    Input("asfr-map-desc-button", "n_clicks"),
+    State("asfr-map-modal", "is_open"),
+)
+def toggle_asfr_map_modal(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("tfr-trend-modal", "is_open"),
+    Input("tfr-trend-desc-button", "n_clicks"),
+    State("tfr-trend-modal", "is_open"),
+)
+def toggle_tfr_trend_modal(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("asfr-trend-modal", "is_open"),
+    Input("asfr-trend-desc-button", "n_clicks"),
+    State("asfr-trend-modal", "is_open"),
+)
+def toggle_asfr_trend_modal(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+# CSV Download callbacks
+@app.callback(
+    Output("tfr-map-download", "data"),
+    Input("tfr-map-download-btn", "n_clicks"),
+    State("year-dropdown", "value"),
+    prevent_initial_call=True
+)
+def download_tfr_map_data(n_clicks, selected_year):
+    if n_clicks:
+        filtered_data = tfr_clean[tfr_clean['year'] == selected_year][['LAD23CD', 'LAD23NM', 'year', 'tfr']]
+        return dcc.send_data_frame(filtered_data.to_csv, f"tfr_map_data_{selected_year}.csv", index=False)
+
+@app.callback(
+    Output("asfr-map-download", "data"),
+    Input("asfr-map-download-btn", "n_clicks"),
+    State("year-dropdown", "value"),
+    State("age-dropdown", "value"),
+    prevent_initial_call=True
+)
+def download_asfr_map_data(n_clicks, selected_year, selected_age):
+    if n_clicks:
+        filtered_data = asfr_clean[
+            (asfr_clean['year'] == selected_year) & 
+            (asfr_clean['age'] == selected_age)
+        ][['LAD23CD', 'LAD23NM', 'age', 'year', 'fertility_rate']]
+        return dcc.send_data_frame(filtered_data.to_csv, f"asfr_map_data_{selected_year}_age_{selected_age}.csv", index=False)
+
+@app.callback(
+    Output("tfr-trend-download", "data"),
+    Input("tfr-trend-download-btn", "n_clicks"),
+    State("lad-dropdown", "value"),
+    prevent_initial_call=True
+)
+def download_tfr_trend_data(n_clicks, selected_lads):
+    if n_clicks and selected_lads:
+        filtered_data = tfr_clean[tfr_clean['LAD23NM'].isin(selected_lads)][['LAD23CD', 'LAD23NM', 'year', 'tfr']]
+        return dcc.send_data_frame(filtered_data.to_csv, f"tfr_trend_data.csv", index=False)
+
+@app.callback(
+    Output("asfr-trend-download", "data"),
+    Input("asfr-trend-download-btn", "n_clicks"),
+    State("lad-dropdown", "value"),
+    State("age-dropdown", "value"),
+    prevent_initial_call=True
+)
+def download_asfr_trend_data(n_clicks, selected_lads, selected_age):
+    if n_clicks and selected_lads:
+        filtered_data = asfr_clean[
+            (asfr_clean['LAD23NM'].isin(selected_lads)) & 
+            (asfr_clean['age'] == selected_age)
+        ][['LAD23CD', 'LAD23NM', 'age', 'year', 'fertility_rate']]
+        return dcc.send_data_frame(filtered_data.to_csv, f"asfr_trend_data_age_{selected_age}.csv", index=False)
 
 
 if __name__ == '__main__':

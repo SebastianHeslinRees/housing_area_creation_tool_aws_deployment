@@ -414,7 +414,7 @@ app.layout = html.Div([
                             dcc.Graph(id='tfr-map', style={'height': '520px'})
                         ], style={'padding': '0'})
                     ], className="graph-container")
-                ], width=6),
+                ], xs=12, sm=12, md=6, lg=6, xl=6, className="map-col-left"),
                 
                 # ASFR Map 
                 dbc.Col([
@@ -433,8 +433,8 @@ app.layout = html.Div([
                             dcc.Graph(id='asfr-map', style={'height': '520px'})
                         ], style={'padding': '0'})
                     ], className="graph-container")
-                ], width=6)
-            ], className="mb-4"),
+                ], xs=12, sm=12, md=6, lg=6, xl=6, className="map-col-right")
+            ], className="mb-4 g-3 maps-row"),
             
             #   Trend Analysis
             dbc.Row([

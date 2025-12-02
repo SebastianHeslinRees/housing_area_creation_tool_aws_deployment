@@ -87,6 +87,12 @@ body.dark-mode {
         flex: 1 1 calc(33.333% - 1.5rem) !important;
         max-width: calc(33.333% - 1.5rem) !important;
     }
+    
+    /* Override for maps row - 2 columns at 50% each */
+    .mb-4.g-3.maps-row > div {
+        flex: 1 1 calc(50% - 1.5rem) !important;
+        max-width: calc(50% - 1.5rem) !important;
+    }
 }
 
 /* ========== SIDEBAR NAVIGATION ========== */
@@ -1554,4 +1560,16 @@ body.dark-mode .description-modal .modal-header {
 
 body.dark-mode .description-modal .modal-body {
     color: #eeeeee;
+}
+
+/* Maps Row Responsive Layout */
+/* On medium screens and larger, add extra padding between side-by-side maps */
+@media (min-width: 768px) {
+    .map-col-left {
+        padding-right: 12px;
+    }
+    
+    .map-col-right {
+        padding-left: 12px;
+    }
 }

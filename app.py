@@ -368,7 +368,7 @@ app.layout = html.Div([
                             ], className="text-center")
                         ])
                     ], className="metric-card metric-card-bg metric-border-secondary")
-                ], xs=12, sm=12, md=4, lg=4),
+                ], xs=12, sm=12, md=4, lg=4, style={'paddingLeft': '0px', 'paddingRight': '4px'}),
                 
                 dbc.Col([
                     dbc.Card([
@@ -380,7 +380,7 @@ app.layout = html.Div([
                             ], className="text-center")
                         ])
                     ], className="metric-card metric-card-bg metric-border-accent")
-                ], xs=12, sm=12, md=4, lg=4),
+                ], xs=12, sm=12, md=4, lg=4, style={'paddingLeft': '4px', 'paddingRight': '4px'}),
                 
                 dbc.Col([
                     dbc.Card([
@@ -392,7 +392,7 @@ app.layout = html.Div([
                             ], className="text-center")
                         ])
                     ], className="metric-card metric-card-bg metric-border-warning")
-                ], xs=12, sm=12, md=4, lg=4)
+                ], xs=12, sm=12, md=4, lg=4, style={'paddingLeft': '7px', 'paddingRight': '0px'})
             ], className="mb-4 g-3"),
             
             #   Maps Section
@@ -400,18 +400,13 @@ app.layout = html.Div([
                 # TFR Map
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader([
-                            html.Div([
-                                html.H5("Total Fertility Rate Map", className="text-center mb-0 card-header-title"),
-                                html.Div([
-                                    html.Button("Download as CSV", id="tfr-map-download-btn", className="download-csv-button"),
-                                    dcc.Download(id="tfr-map-download"),
-                                    html.Button("View description", id="tfr-map-desc-button", className="description-button")
-                                ], className="button-group-right")
-                            ], className="card-header-with-button")
-                        ], className="card-header-bg"),
                         dbc.CardBody([
-                            dcc.Graph(id='tfr-map', style={'height': '520px'})
+                            dcc.Graph(id='tfr-map', style={'height': '520px'}),
+                            html.Div([
+                                html.Button("Download as CSV", id="tfr-map-download-btn", className="download-csv-button"),
+                                dcc.Download(id="tfr-map-download"),
+                                html.Button("ℹ View description", id="tfr-map-desc-button", className="description-button")
+                            ], className="button-group-bottom")
                         ], style={'padding': '0'})
                     ], className="graph-container")
                 ], xs=12, sm=12, md=6, lg=6, xl=6, className="map-col-left"),
@@ -419,18 +414,13 @@ app.layout = html.Div([
                 # ASFR Map 
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader([
-                            html.Div([
-                                html.H5("Age-Specific Fertility Rate Map", className="text-center mb-0 card-header-title"),
-                                html.Div([
-                                    html.Button("Download as CSV", id="asfr-map-download-btn", className="download-csv-button"),
-                                    dcc.Download(id="asfr-map-download"),
-                                    html.Button("View description", id="asfr-map-desc-button", className="description-button")
-                                ], className="button-group-right")
-                            ], className="card-header-with-button")
-                        ], className="card-header-bg"),
                         dbc.CardBody([
-                            dcc.Graph(id='asfr-map', style={'height': '520px'})
+                            dcc.Graph(id='asfr-map', style={'height': '520px'}),
+                            html.Div([
+                                html.Button("Download as CSV", id="asfr-map-download-btn", className="download-csv-button"),
+                                dcc.Download(id="asfr-map-download"),
+                                html.Button("ℹ View description", id="asfr-map-desc-button", className="description-button")
+                            ], className="button-group-bottom")
                         ], style={'padding': '0'})
                     ], className="graph-container")
                 ], xs=12, sm=12, md=6, lg=6, xl=6, className="map-col-right")
@@ -441,18 +431,13 @@ app.layout = html.Div([
                 # TFR Trend 
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader([
-                            html.Div([
-                                html.H5("TFR Trend Analysis", className="text-center mb-0 card-header-title"),
-                                html.Div([
-                                    html.Button("Download as CSV", id="tfr-trend-download-btn", className="download-csv-button"),
-                                    dcc.Download(id="tfr-trend-download"),
-                                    html.Button("View description", id="tfr-trend-desc-button", className="description-button")
-                                ], className="button-group-right")
-                            ], className="card-header-with-button")
-                        ], className="card-header-bg"),
                         dbc.CardBody([
-                            dcc.Graph(id='tfr-trend', style={'height': '420px'})
+                            dcc.Graph(id='tfr-trend', style={'height': '420px'}),
+                            html.Div([
+                                html.Button("Download as CSV", id="tfr-trend-download-btn", className="download-csv-button"),
+                                dcc.Download(id="tfr-trend-download"),
+                                html.Button("ℹ View description", id="tfr-trend-desc-button", className="description-button")
+                            ], className="button-group-bottom")
                         ], style={'padding': '0'})
                     ], className="graph-container")
                 ], width=12),
@@ -460,59 +445,55 @@ app.layout = html.Div([
                 # ASFR Trend 
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader([
-                            html.Div([
-                                html.H5("ASFR Trend Analysis", className="text-center mb-0 card-header-title"),
-                                html.Div([
-                                    html.Button("Download as CSV", id="asfr-trend-download-btn", className="download-csv-button"),
-                                    dcc.Download(id="asfr-trend-download"),
-                                    html.Button("View description", id="asfr-trend-desc-button", className="description-button")
-                                ], className="button-group-right")
-                            ], className="card-header-with-button")
-                        ], className="card-header-bg"),
                         dbc.CardBody([
-                            dcc.Graph(id='asfr-trend', style={'height': '420px'})
+                            dcc.Graph(id='asfr-trend', style={'height': '420px'}),
+                            html.Div([
+                                html.Button("Download as CSV", id="asfr-trend-download-btn", className="download-csv-button"),
+                                dcc.Download(id="asfr-trend-download"),
+                                html.Button("ℹ View description", id="asfr-trend-desc-button", className="description-button")
+                            ], className="button-group-bottom")
                         ], style={'padding': '0'})
                     ], className="graph-container")
                 ], width=12)
-            ], className="mb-4"),
-            
-            # Footer
-            dbc.Row([
-                dbc.Col([
-                    html.Hr(className="footer-divider"),
-                    
-                    # GLA City Intelligence Unit Logo
-                    html.Div([
-                        html.Img(
-                            id="gla-logo-light",
-                            src="https://greater-london-authority.github.io/ldn-viz-tools/iframe.html?globals=theme%3Alight&args=&id=ui-components-logos--ciu&viewMode=story",
-                            className="gla-logo gla-logo-light",
-                            alt="GLA City Intelligence Unit"
-                        ),
-                        html.Img(
-                            id="gla-logo-dark",
-                            src="https://greater-london-authority.github.io/ldn-viz-tools/iframe.html?globals=theme%3Adark&args=&id=ui-components-logos--ciu&viewMode=story",
-                            className="gla-logo gla-logo-dark",
-                            alt="GLA City Intelligence Unit"
-                        )
-                    ], className="text-center mb-3 gla-logo-container"),
-                    
-                    html.P([
-                        "GLA Fertility Dashboard | Data: ",
-                        html.A("GLA Fertility Rate Output", 
-                              href="https://data.london.gov.uk/dataset/age-specific-fertility-rates-vd4q4/", 
-                              target="_blank",
-                              className="footer-link"),
-                        " | ONS | ",
-                        html.A("Office for National Statistics", 
-                              href="https://www.ons.gov.uk", 
-                              target="_blank",
-                              className="footer-link")
-                    ], className="text-center footer-credits")
-                ], width=12)  # Close dbc.Col
-            ])  # Close dbc.Row
+            ], className="mb-4")
         ], fluid=True, className="main-container dashboard-grey-line"),  # Close dbc.Container
+        
+        # Footer - Stylish full-width black box
+        html.Div([
+            html.Div([
+                # GLA City Intelligence Unit Logo centered on top
+                html.Div([
+                    html.Iframe(
+                        id="gla-logo-dark",
+                        src="https://greater-london-authority.github.io/ldn-viz-tools/iframe.html?globals=theme:dark&args=&id=ui-components-logos--ciu",
+                        style={'border': 'none', 'width': '250px', 'height': '60px', 'overflow': 'hidden'}
+                    )
+                ], style={'textAlign': 'center', 'marginBottom': '1rem'}),
+                
+                # Footer text centered below
+                html.P([
+                    "GLA Fertility Dashboard | Data: ",
+                    html.A("GLA Fertility Rate Output", 
+                          href="https://data.london.gov.uk/dataset/age-specific-fertility-rates-vd4q4/", 
+                          target="_blank",
+                          style={'color': '#ffffff', 'textDecoration': 'underline'}),
+                    " | ONS | ",
+                    html.A("Office for National Statistics", 
+                          href="https://www.ons.gov.uk", 
+                          target="_blank",
+                          style={'color': '#ffffff', 'textDecoration': 'underline'})
+                ], style={'color': '#ffffff', 'marginBottom': '0', 'textAlign': 'center', 'fontSize': '13px'})
+            ], style={
+                'backgroundColor': 'rgb(14, 19, 22)',
+                'padding': '1.5rem 2rem',
+                'marginTop': '3rem',
+                'borderTop': '1px solid #d6d8da'
+            })
+        ], style={
+            'width': '100vw',
+            'marginLeft': 'calc(-50vw + 50%)',
+            'marginRight': 'calc(-50vw + 50%)'
+        }),
         
         # Modals for descriptions
         dbc.Modal([
@@ -591,9 +572,9 @@ def update_metrics(selected_year, selected_lads):
                 if current_tfr >= 2.1:
                     status = "Above replacement level"
                 elif current_tfr >= 1.8:
-                    status = f"Below by {2.1 - current_tfr:.2f}"
+                    status = f"Local Authority is {2.1 - current_tfr:.2f} below replacement level"  
                 else:
-                    status = f"Below by {2.1 - current_tfr:.2f}"
+                    status = f"Local Authority is  {2.1 - current_tfr:.2f} below replacement level"
                     
                 return tfr_display, comparison, status
         
@@ -688,11 +669,11 @@ def update_tfr_map(selected_year, dark_mode_data):
         )
         
         # Create narrative title with subtitle
-        main_title = f"Across the UK, Total Fertility Rate varies by location"
-        title_text = f"{main_title}<br><sub style='font-size: 12px; color: #6e6e6e;'>Total Fertility Rate by Local Authority, year {selected_year}</sub>"
+        main_title = f"Total Fertility Rate Map"
+        title_text = f"<b style='font-size: 20px; font-weight: 700; font-family: Inter, ui-sans-serif, system-ui, sans-serif;'>{main_title}</b><br><sub style='font-size: 12px; color: #6e6e6e;'>Total Fertility Rate (TFR) by Local Authority, year {selected_year}</sub>"
         
         # Dark mode styling
-        title_color = '#eeeeee' if is_dark else '#2a2d35'
+        title_color = '#eeeeee' if is_dark else 'rgb(53, 61, 67)'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else 'white'
         plot_bg = '#000000' if is_dark else 'white'
         
@@ -711,7 +692,11 @@ def update_tfr_map(selected_year, dark_mode_data):
                 title_font=dict(size=14, color=title_color),
                 tickfont=dict(color=title_color),
                 len=0.8,
-                thickness=20
+                thickness=20,
+                x=0.00,
+                xanchor='right',
+                y=0.6,
+                yanchor='middle'
             )
         )
         
@@ -791,11 +776,11 @@ def update_asfr_map(selected_year, selected_age, dark_mode_data):
         )
         
         # Create narrative title with subtitle
-        main_title = f"Across the UK, Age-Specific Fertility Rate for age {selected_age} varies by location"
-        title_text = f"{main_title}<br><sub style='font-size: 12px; color: #6e6e6e;'>Age-Specific Fertility Rate for age {selected_age}, year {selected_year}</sub>"
+        main_title = f"Age-Specific Fertility Rate Map"
+        title_text = f"<b style='font-size: 20px; font-weight: 700; font-family: Inter, ui-sans-serif, system-ui, sans-serif;'>{main_title}</b><br><sub style='font-size: 12px; color: #6e6e6e;'>Age-Specific Fertility Rate (ASFR) for age {selected_age}, year {selected_year}</sub>"
         
         # Dark mode styling
-        title_color = '#eeeeee' if is_dark else '#2a2d35'
+        title_color = '#eeeeee' if is_dark else 'rgb(53, 61, 67)'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else 'white'
         plot_bg = '#000000' if is_dark else 'white'
         
@@ -814,7 +799,11 @@ def update_asfr_map(selected_year, selected_age, dark_mode_data):
                 title_font=dict(size=14, color=title_color),
                 tickfont=dict(color=title_color),
                 len=0.8,
-                thickness=20
+                thickness=20,
+                x=0.00,
+                xanchor='right',
+                y=0.6,
+                yanchor='middle'
             )
         )
         
@@ -889,9 +878,9 @@ def update_tfr_trend(selected_lads, dark_mode_data):
         )
         
         #   replacement level line
-        fig.add_hline(y=2.1, line_dash="dot", line_color=COLORS['warning'], line_width=3,
+        fig.add_hline(y=2.1, line_dash="dot", line_color='#007ACC', line_width=3,
                      annotation_text="UK Replacement Level (2.1)", 
-                     annotation_font=dict(color=COLORS['warning'], size=12))
+                     annotation_font=dict(color='#007ACC', size=12))
         
         # Create clean title like reference image
         if len(selected_lads) == 1:
@@ -912,7 +901,7 @@ def update_tfr_trend(selected_lads, dark_mode_data):
         axis_color = '#999999' if is_dark else '#6e6e6e'
         plot_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
-        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(0, 0, 0, 0.9)'
+        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgb(14, 19, 22)'
         grid_color = 'rgba(255,255,255,0.08)' if is_dark else '#e5e5e5'
         
         fig.update_layout(
@@ -1052,7 +1041,7 @@ def update_asfr_trend(selected_lads, selected_year, dark_mode_data):
         axis_color = '#999999' if is_dark else '#6e6e6e'
         plot_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
         paper_bg = 'rgb(14, 19, 22)' if is_dark else '#ffffff'
-        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgba(0, 0, 0, 0.9)'
+        legend_bg = 'rgba(255,255,255,0.95)' if not is_dark else 'rgb(14, 19, 22)'
         grid_color = 'rgba(255,255,255,0.08)' if is_dark else '#e5e5e5'
         
         fig.update_layout(

@@ -177,6 +177,7 @@ body.dark-mode {
 .sidebar label,
 .sidebar .control-label {
     color: #ffffff !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 
@@ -507,7 +508,7 @@ body.dark-mode .sidebar-theme-toggle {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #2a2d35 0%, #53565e 100%);
+    background: linear-gradient(135deg, #0e1316 0%, #2a2d35 50%, #3d4148 100%);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -535,21 +536,22 @@ body.dark-mode .sidebar-theme-toggle {
 /* Loading Text */
 .loading-text {
     color: white;
-    font-family: var(--font-family);
-    font-size: 28px;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    margin-bottom: 10px;
-    letter-spacing: 1px;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 32px;
+    font-weight: 700;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
 }
 
 .loading-subtext {
-    color: rgba(255, 255, 255, 0.95);
-    font-family: var(--font-family);
+    color: rgba(255, 255, 255, 0.9);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     font-size: 16px;
     text-align: center;
     max-width: 350px;
-    font-weight: 300;
+    font-weight: 400;
+    line-height: 1.5;
 }
 
 /* GLA logo in loading screen */
@@ -578,6 +580,11 @@ body.dark-mode .sidebar-theme-toggle {
     object-fit: contain;
 }
 
+/* Global text styling with Inter font */
+p, .text-muted {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 /* Card Styling */
 .metric-card {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
@@ -588,6 +595,12 @@ body.dark-mode .sidebar-theme-toggle {
 
 .metric-card .card-body {
     padding-left: 24px !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.metric-card .card-body p,
+.metric-card .card-body .text-muted {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 .metric-card:hover {
@@ -671,7 +684,7 @@ body.dark-mode .dashboard-grey-line {
     color: rgb(255, 255, 255) !important;
     line-height: 24px !important;
     background-color: rgb(25, 32, 35) !important;
-    border-color: rgb(82, 89, 94) !important;
+    border-color: rgb(103, 110, 115) !important;
     border-width: 1px !important;
     border-radius: 4px !important;
     padding: 0px 0px 0px 16px !important;
@@ -679,7 +692,7 @@ body.dark-mode .dashboard-grey-line {
 }
 
 .Select-control:hover {
-    border-color: var(--color-primary) !important;
+    border-color: rgb(255, 255, 255) !important;
 }
 
 /* Dropdown text, placeholder, and input styling */
@@ -738,8 +751,12 @@ body.dark-mode .Select-input > input {
     color: var(--color-dark-text) !important;
 }
 
+.Select-arrow {
+    border-color: rgb(103, 110, 115) transparent transparent !important;
+}
+
 body.dark-mode .Select-arrow {
-    border-color: var(--color-dark-text) transparent transparent !important;
+    border-color: rgb(103, 110, 115) transparent transparent !important;
 }
 
 /* Modern Dash Dropdown Dark Mode */
@@ -877,23 +894,23 @@ body.dark-mode label {
 
 /* Dark mode: Dropdowns */
 body.dark-mode .Select-control {
-    background-color: #0f3460 !important;
-    border-color: #1e3a8a !important;
+    background-color: rgb(25, 32, 35) !important;
+    border-color: rgb(103, 110, 115) !important;
     color: #eee !important;
 }
 
 body.dark-mode .Select-menu-outer {
-    background-color: #16213e !important;
-    border-color: #1e3a8a !important;
+    background-color: rgb(25, 32, 35) !important;
+    border-color: rgb(103, 110, 115) !important;
 }
 
 body.dark-mode .Select-option {
-    background-color: #16213e !important;
+    background-color: rgb(25, 32, 35) !important;
     color: #eee !important;
 }
 
 body.dark-mode .Select-option:hover {
-    background-color: #1e3a8a !important;
+    background-color: rgba(103, 110, 115, 0.3) !important;
 }
 
 /* Dark mode: Graph containers */
@@ -1041,6 +1058,10 @@ button:focus,
     opacity: 0.6;
     transition: opacity 0.3s ease;
     flex-shrink: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    font-variant-emoji: text;
+    -webkit-font-feature-settings: "colr" 0;
+    font-feature-settings: "colr" 0;
 }
 
 .theme-toggle-switch {
@@ -1133,6 +1154,7 @@ body.dark-mode .theme-icon-dark {
     font-size: 14px;
     font-weight: 600;
     margin-bottom: 8px;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 body.dark-mode .control-label {
@@ -1161,6 +1183,7 @@ body.dark-mode .dashboard-controls-heading {
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 12px;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 body.dark-mode .metric-title {
@@ -1397,60 +1420,107 @@ body.dark-mode .h5 {
     align-items: center;
 }
 
+.button-group-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+}
+
 .download-csv-button {
-    background-color: #2a2d35;
-    border: 1px solid #2a2d35;
-    color: white;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(103, 110, 115);
+    border: 0px solid rgb(229, 231, 235);
+    color: rgb(255, 255, 255);
+    padding: 6px 12px 6px 32px;
+    margin: 0px;
+    width: auto;
+    height: 32px;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
     font-weight: 400;
     cursor: pointer;
-    border-radius: 0;
+    border-radius: 0px;
+    box-shadow: none;
     transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    position: relative;
+}
+
+.download-csv-button::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'%3E%3C/path%3E%3Cpolyline points='7 10 12 15 17 10'%3E%3C/polyline%3E%3Cline x1='12' y1='15' x2='12' y2='3'%3E%3C/line%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 .download-csv-button:hover {
-    background-color: #3a3d45;
-    border-color: #3a3d45;
+    background-color: rgb(123, 130, 135);
+    border-color: rgb(123, 130, 135);
 }
 
 body.dark-mode .download-csv-button {
-    background-color: #2a2d35;
-    border-color: #2a2d35;
+    background-color: rgb(103, 110, 115);
+    border-color: rgb(103, 110, 115);
+    color: rgb(255, 255, 255);
 }
 
 body.dark-mode .download-csv-button:hover {
-    background-color: #3a3d45;
-    border-color: #3a3d45;
+    background-color: rgb(123, 130, 135);
+    border-color: rgb(123, 130, 135);
+    color: rgb(255, 255, 255);
 }
 
 .description-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-color: transparent;
-    border: 1px solid rgb(88, 88, 88);
-    color: rgb(88, 88, 88);
+    border: 1px solid rgb(103, 110, 115);
+    color: rgb(103, 110, 115);
     padding: 6px 12px;
-    font-size: 12px;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    margin: 0px;
+    width: auto;
+    height: 32px;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
     font-weight: 400;
     cursor: pointer;
-    border-radius: 0;
+    border-radius: 0px;
+    box-shadow: none;
     transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
 }
 
 .description-button:hover {
-    background-color: rgb(88, 88, 88);
-    color: white;
+    background-color: rgba(103, 110, 115, 0.1);
+    color: rgb(123, 130, 135);
 }
 
 body.dark-mode .description-button {
-    border-color: #eeeeee;
-    color: #eeeeee;
+    border-color: rgb(229, 231, 235);
+    color: rgb(168, 173, 179);
 }
 
 body.dark-mode .description-button:hover {
-    background-color: #eeeeee;
-    color: #192023;
+    background-color: rgba(168, 173, 179, 0.1);
+    color: rgb(188, 193, 199);
 }
 
 /* Modal styles - overlay popup */

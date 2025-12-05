@@ -4,21 +4,13 @@ AWSCLIV2.pkg
 # Ignore ZIP packages (we'll push source files instead)
 *.zip
 
-# Ignore large GeoJSON data files (stored in S3)
-*.geojson
-*.geojson.local
-asfr_merged.geojson
-tfr_merged.geojson
-asfr_merged_reduced.geojson
-tfr_merged_reduced.geojson
-
-# Data processing scripts (keep local only)
-reduce_geojson_precision.py
-round_asfr_fertility_rate.py
-
 # Ignore Docker and AWS-specific files not needed for App Runner
 Dockerfile
 task-definition.json
+
+# Data files - too large for git
+*.geojson
+*.geojson.local
 
 # Security: Ignore environment files with sensitive data
 .env
@@ -31,21 +23,6 @@ secrets.json
 __pycache__/
 *.pyc
 *.pyo
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-
-# Backup files
-*_backup.py
-app_backup.py
-
-# Development/deployment documentation (keep local only)
-integration_guide.py
-oauth_config.py
-test_auth.py
-auth.py
-DEPLOYMENT_GUIDE.md
 
 # Environment files
 .env

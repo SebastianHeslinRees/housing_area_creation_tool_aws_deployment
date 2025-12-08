@@ -12,6 +12,20 @@ task-definition.json
 *.geojson
 *.geojson.local
 
+# Development and testing files
+app_backup.py
+auth.py
+integration_guide.py
+oauth_config.py
+reduce_geojson_precision.py
+round_asfr_fertility_rate.py
+test_auth.py
+test_govuk_styles.html
+DEPLOYMENT_GUIDE.md
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
 # Security: Ignore environment files with sensitive data
 .env
 .env.local

@@ -177,9 +177,7 @@ app.index_string = '''
     <head>
         {%metas%}
         <title>{%title%}</title>
-        <link rel="icon" type="image/png" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
-        <link rel="shortcut icon" type="image/png" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
-        <link rel="apple-touch-icon" href="https://resource.esriuk.com/wp-content/uploads/2017/06/GLA-Logo-Resized.png">
+        <link rel="icon" href="https://dev.ldn-gis.co.uk/sector-explorer/favicon.ico">
         {%css%}
     </head>
     <body>

@@ -318,11 +318,11 @@ body.dark-mode .year-display {
 }
 
 .range-slider .rc-slider-handle {
-    width: 16px !important;
-    height: 16px !important;
-    margin-top: -5px !important;
+    width: 14px !important;
+    height: 14px !important;
+    margin-top: -4px !important;
     background: #006fc0 !important;
-    border: 2px solid #ffffff !important;
+    border: none !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
 
@@ -331,7 +331,13 @@ body.dark-mode .year-display {
 .range-slider .rc-slider-handle:focus {
     background: #006fc0 !important;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-    border-color: #ffffff !important;
+    border: none !important;
+}
+
+/* Slider tooltip */
+.rc-slider-tooltip,
+.rc-slider-tooltip-inner {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
 }
 
 /* WebKit browsers (Chrome, Safari, Edge) */

@@ -170,6 +170,11 @@ app = dash.Dash(
 app.title = "UK Fertility Dashboard"
 server = app.server  # Expose server for gunicorn
 
+# Add health check endpoint for AWS App Runner
+@server.route('/health')
+def health_check():
+    return 'OK', 200
+
 # loading spinner
 app.index_string = '''
 <!DOCTYPE html>

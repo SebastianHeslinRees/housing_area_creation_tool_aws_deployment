@@ -6,4 +6,5 @@ plotly==5.17.0
 geopandas==0.13.2
 fiona==1.9.4.post1
 shapely==2.0.2
+boto3==1.28.85
 gunicorn==21.2.0

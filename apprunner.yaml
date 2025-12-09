@@ -7,7 +7,7 @@ build:
 run:
   runtime-version: 3.8
   # Use port 8022 for the updated fertility dashboard
-  command: gunicorn --bind 0.0.0.0:8022 --workers 1 --timeout 120 app:server
+  command: gunicorn --bind 0.0.0.0:8022 --workers 1 --timeout 300 --preload app:server
   network:
     port: 8022
     env: PORT

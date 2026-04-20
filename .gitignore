@@ -9,8 +9,12 @@ Dockerfile
 task-definition.json
 
 # Data files - too large for git
+*.csv
 *.geojson
 *.geojson.local
+flow_data/
+boundary_data/
+scripts/output/
 
 # Development and testing files
 app_backup.py

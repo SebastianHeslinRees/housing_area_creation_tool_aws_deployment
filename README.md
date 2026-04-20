@@ -88,9 +88,11 @@ assignments.csv
 ```
 
 ## Architecture Diagrams
-For a standalone visual explanation of the deployment and runtime flow, open [architecture_diagrams.html](/Users/user1/Documents/household_zone_dashboard_update/architecture_diagrams.html).
+For a repo-safe visual explanation of the deployment and runtime flow, open [architecture_diagrams.md](architecture_diagrams.md).
 
-That page includes:
+For local export as a styled HTML page, open `architecture_diagrams.html` directly in your browser or VS Code preview.
+
+The diagrams page includes:
 
 - a detailed architecture diagram separating the Python app, the PySpark Glue job, the Docker packaging layer, the YAML deployment configuration, S3 storage, ECR, App Runner, and IAM roles
 - a detailed runtime sequence diagram showing how threshold selections in the Dash app map to precomputed files in S3

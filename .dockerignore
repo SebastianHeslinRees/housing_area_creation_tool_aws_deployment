@@ -1,0 +1,16 @@
+.git
+.venv
+.vscode
+.ipynb_checkpoints
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+*.ipynb
+*.local
+boundary_data
+flow_data
+app_local.py
+tfr_merged.geojson
+tfr_merged_reduced.geojson
+tfr_merged_reduced.geojson.local

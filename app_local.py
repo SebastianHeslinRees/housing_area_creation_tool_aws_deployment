@@ -8,15 +8,10 @@ present in the workspace.
 """
 
 import os
-import gzip
-import json
-from io import StringIO
 from pathlib import Path
 
-import boto3
 import dash
 import dash_bootstrap_components as dbc
-from botocore.exceptions import ClientError
 from dash import Input, Output, State, dcc, html
 import geopandas as gpd
 import pandas as pd
@@ -24,11 +19,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-PORT = int(os.environ.get("PORT", 8012))
-DEFAULT_GEOMETRY_FILE = os.environ.get(
-    "HMA_GEOMETRY_FILE",
-    "boundary_data/Local_Authority_Districts_December_2023_Boundaries_UK_BGC_2537431731774104276_simplified.geojson",
-)
+PORT = int(os.environ.get("PORT", 8011))
 DEFAULT_COMMUTING_FLOW = os.environ.get(
     "HMA_COMMUTING_FLOW_FILE",
     "flow_data/commuting_flow_la_2023.csv",
@@ -37,22 +28,10 @@ DEFAULT_MIGRATION_FLOW = os.environ.get(
     "HMA_MIGRATION_FLOW_FILE",
     "flow_data/migration_flow_la_2023.csv",
 )
-PRECOMPUTED_RESULTS_PREFIX = os.environ.get(
-    "HMA_PRECOMPUTED_S3_PREFIX",
-    "s3://dpa-population-projection-data/dpa-apps/housing_zones_precomputed",
-)
-DATASET_VERSION = os.environ.get("HMA_DATASET_VERSION")
-ALLOW_LOCAL_THRESHOLD_FALLBACK = os.environ.get("HMA_ALLOW_LOCAL_FALLBACK", "true").lower() not in {
-    "0",
-    "false",
-    "no",
-}
-S3_CLIENT = boto3.client("s3")
+DEFAULT_GEOMETRY_FILE = "/Users/user1/Documents/household_zone_dashboard_update/boundary_data/Local_Authority_Districts_December_2023_Boundaries_UK_BGC_2537431731774104276_simplified.geojson"
 
 current_results = None
 current_meta = None
-current_assignments = None
-LOCAL_APP_DATA = None
 
 
 def parse_css_colours(css_file="assets/styles.css"):
@@ -155,119 +134,6 @@ HMA_MAP_COLORS = [
 ]
 
 
-def parse_s3_uri(uri):
-    if not uri.startswith("s3://"):
-        raise ValueError(f"Expected s3:// URI, got {uri}")
-    bucket, _, key = uri[5:].partition("/")
-    if not bucket or not key:
-        raise ValueError(f"Invalid S3 URI: {uri}")
-    return bucket, key
-
-
-def normalise_s3_prefix(prefix):
-    return prefix.rstrip("/")
-
-
-def format_threshold(value):
-    return f"{value:.3f}"
-
-
-def build_threshold_prefix(commuting_threshold, migration_threshold):
-    if not DATASET_VERSION:
-        raise RuntimeError("HMA_DATASET_VERSION is not set")
-    return (
-        f"{normalise_s3_prefix(PRECOMPUTED_RESULTS_PREFIX)}/dataset_version={DATASET_VERSION}"
-        f"/commuting_threshold={format_threshold(commuting_threshold)}"
-        f"/migration_threshold={format_threshold(migration_threshold)}"
-    )
-
-
-def read_s3_bytes(uri):
-    bucket, key = parse_s3_uri(uri)
-    response = S3_CLIENT.get_object(Bucket=bucket, Key=key)
-    return response["Body"].read()
-
-
-def read_s3_json(uri):
-    return json.loads(read_s3_bytes(uri).decode("utf-8"))
-
-
-def read_s3_csv(uri):
-    csv_body = read_s3_bytes(uri).decode("utf-8")
-    return pd.read_csv(StringIO(csv_body))
-
-
-def s3_object_exists(uri):
-    bucket, key = parse_s3_uri(uri)
-    try:
-        S3_CLIENT.head_object(Bucket=bucket, Key=key)
-        return True
-    except ClientError as error:
-        error_code = error.response.get("Error", {}).get("Code")
-        if error_code in {"404", "NoSuchKey", "NotFound"}:
-            return False
-        raise
-
-
-def load_precomputed_geometry(uri):
-    body = read_s3_bytes(uri)
-    if uri.endswith(".gz"):
-        body = gzip.decompress(body)
-    geojson = json.loads(body.decode("utf-8"))
-    geometry = gpd.GeoDataFrame.from_features(geojson.get("features", []))
-    if geometry.empty:
-        return geometry
-    if geometry.crs is None:
-        geometry = geometry.set_crs("EPSG:4326", allow_override=True)
-    else:
-        geometry = geometry.to_crs(epsg=4326)
-    return geometry
-
-
-def build_summary_df(map_df):
-    if map_df.empty:
-        return pd.DataFrame(columns=["HMA_ID", "HMA_Name", "HMA_Size", "Commuting_SC", "Migration_SC", "Stage"])
-    summary_df = map_df[["HMA_ID", "HMA_Name", "HMA_Size", "Commuting_SC", "Migration_SC", "Stage"]].copy()
-    summary_df = summary_df.drop_duplicates(subset=["HMA_ID"]).sort_values(
-        ["HMA_Size", "HMA_Name"],
-        ascending=[False, True],
-    )
-    return summary_df
-
-
-def load_precomputed_result(commuting_threshold, migration_threshold):
-    threshold_prefix = build_threshold_prefix(commuting_threshold, migration_threshold)
-    summary_uri = f"{threshold_prefix}/summary.json"
-    summary_payload = read_s3_json(summary_uri)
-
-    geometry_uri = summary_payload.get("geometry_s3_uri", f"{threshold_prefix}/hma_boundaries.geojson.gz")
-    map_df = load_precomputed_geometry(geometry_uri)
-    summary_df = build_summary_df(map_df)
-
-    assignments_candidates = [
-        summary_payload.get("assignments_csv_s3_uri"),
-        f"{threshold_prefix}/assignments.csv",
-    ]
-    assignments_df = None
-    for candidate in assignments_candidates:
-        if candidate and s3_object_exists(candidate):
-            assignments_df = read_s3_csv(candidate)
-            break
-
-    meta = {
-        "passed_regions": summary_payload.get("passed_regions", 0),
-        "migration_regions": summary_payload.get("migration_regions", 0),
-        "final_hmas": summary_payload.get("final_hmas", 0),
-        "commuting_threshold": summary_payload.get("commuting_threshold", commuting_threshold),
-        "migration_threshold": summary_payload.get("migration_threshold", migration_threshold),
-        "summary_df": summary_df,
-        "geometry_s3_uri": geometry_uri,
-        "assignments_s3_uri": summary_payload.get("assignments_s3_uri"),
-        "assignments_csv_s3_uri": summary_payload.get("assignments_csv_s3_uri"),
-    }
-    return map_df, assignments_df, meta
-
-
 def first_existing_path(*candidates):
     for candidate in candidates:
         if not candidate:
@@ -277,10 +143,12 @@ def first_existing_path(*candidates):
     return None
 
 
-def load_local_base_geography():
-    geometry_path = first_existing_path(DEFAULT_GEOMETRY_FILE)
+def load_base_geography():
+    geometry_path = first_existing_path(
+        DEFAULT_GEOMETRY_FILE
+    )
     if geometry_path is None:
-        raise FileNotFoundError("No usable local geometry source was found in the workspace")
+        raise FileNotFoundError("No usable geometry source was found in the workspace")
 
     geography = gpd.read_file(geometry_path)
     if "LAD23CD" not in geography.columns:
@@ -306,10 +174,11 @@ def load_local_base_geography():
     geography = geography[geography["LAD23CD"].astype(str).str.startswith(("E", "W"))].copy()
     geography = geography[geography.geometry.notnull() & geography.is_valid].reset_index(drop=True)
     geography["geometry"] = geography.geometry.simplify(tolerance=0.0015, preserve_topology=True)
+
     return geography, geometry_path
 
 
-def load_local_flow_dataframe(path, flow_kind):
+def load_flow_dataframe(path, flow_kind):
     if not path or not Path(path).exists():
         return None, None
 
@@ -332,6 +201,7 @@ def load_local_flow_dataframe(path, flow_kind):
     flow_df["flow"] = pd.to_numeric(flow_df["flow"], errors="coerce").fillna(0)
     flow_df = flow_df[flow_df["origin"].str.startswith(("E", "W"))]
     flow_df = flow_df[flow_df["destination"].str.startswith(("E", "W"))]
+
     return flow_df, str(Path(path))
 
 
@@ -386,10 +256,17 @@ def bidirectional_flows(region_a, region_b, flows_dict):
     return flow_total
 
 
-def build_local_data_context():
-    geography, geometry_path = load_local_base_geography()
-    commuting_flows, commuting_path = load_local_flow_dataframe(DEFAULT_COMMUTING_FLOW, "commuting")
-    migration_flows, migration_path = load_local_flow_dataframe(DEFAULT_MIGRATION_FLOW, "migration")
+def build_data_context():
+    geography, geometry_path = load_base_geography()
+    migration_flows, migration_path = load_flow_dataframe(DEFAULT_MIGRATION_FLOW, "migration")
+    commuting_flows, commuting_path = load_flow_dataframe(DEFAULT_COMMUTING_FLOW, "commuting")
+
+    status_lines = [
+        f"Geometry source: {Path(geometry_path).name}",
+        f"Commuting flows: {Path(commuting_path).name if commuting_path else 'missing'}",
+        f"Migration flows: {Path(migration_path).name if migration_path else 'missing'}",
+    ]
+
     return {
         "geography": geography,
         "geometry_path": geometry_path,
@@ -400,61 +277,64 @@ def build_local_data_context():
         "neighbors": build_neighbors_dict(geography),
         "commuting_flow_dict": None,
         "migration_flow_dict": None,
+        "status_lines": status_lines,
     }
 
 
-def get_local_data_context():
-    global LOCAL_APP_DATA
-    if LOCAL_APP_DATA is None:
-        LOCAL_APP_DATA = build_local_data_context()
-    return LOCAL_APP_DATA
+APP_DATA = build_data_context()
 
 
-def refresh_local_flows_if_available():
-    local_data = get_local_data_context()
-    if local_data["commuting_flows"] is None:
-        local_data["commuting_flows"], local_data["commuting_path"] = load_local_flow_dataframe(
+def refresh_flows_if_available():
+    if APP_DATA["commuting_flows"] is None:
+        APP_DATA["commuting_flows"], APP_DATA["commuting_path"] = load_flow_dataframe(
             DEFAULT_COMMUTING_FLOW,
             "commuting",
         )
-    if local_data["migration_flows"] is None:
-        local_data["migration_flows"], local_data["migration_path"] = load_local_flow_dataframe(
+    if APP_DATA["migration_flows"] is None:
+        APP_DATA["migration_flows"], APP_DATA["migration_path"] = load_flow_dataframe(
             DEFAULT_MIGRATION_FLOW,
             "migration",
         )
-    return local_data
+    APP_DATA["status_lines"] = [
+        f"Geometry source: {Path(APP_DATA['geometry_path']).name}",
+        f"Commuting flows: {Path(APP_DATA['commuting_path']).name if APP_DATA['commuting_path'] else 'missing'}",
+        f"Migration flows: {Path(APP_DATA['migration_path']).name if APP_DATA['migration_path'] else 'missing'}",
+    ]
 
 
-def ensure_local_algorithm_inputs():
-    local_data = refresh_local_flows_if_available()
-    if local_data["commuting_flows"] is None or local_data["migration_flows"] is None:
+def ensure_algorithm_inputs():
+    refresh_flows_if_available()
+    if APP_DATA["commuting_flows"] is None or APP_DATA["migration_flows"] is None:
         missing_items = []
-        if local_data["commuting_flows"] is None:
+        if APP_DATA["commuting_flows"] is None:
             missing_items.append(DEFAULT_COMMUTING_FLOW)
-        if local_data["migration_flows"] is None:
+        if APP_DATA["migration_flows"] is None:
             missing_items.append(DEFAULT_MIGRATION_FLOW)
         missing_list = ", ".join(missing_items)
         raise RuntimeError(
-            "Local fallback needs flow inputs. Add the required CSV files or set "
+            "HMA flow inputs are missing. Add the required CSV files or set "
             f"HMA_COMMUTING_FLOW_FILE and HMA_MIGRATION_FLOW_FILE. Missing: {missing_list}"
         )
 
-    if local_data["commuting_flow_dict"] is None:
-        local_data["commuting_flow_dict"] = create_flow_dict(local_data["commuting_flows"])
-    if local_data["migration_flow_dict"] is None:
-        local_data["migration_flow_dict"] = create_flow_dict(local_data["migration_flows"])
-    return local_data
+    if APP_DATA["commuting_flow_dict"] is None:
+        APP_DATA["commuting_flow_dict"] = create_flow_dict(APP_DATA["commuting_flows"])
+    if APP_DATA["migration_flow_dict"] is None:
+        APP_DATA["migration_flow_dict"] = create_flow_dict(APP_DATA["migration_flows"])
 
 
-def run_local_hma_algorithm(commuting_threshold, migration_threshold):
-    local_data = ensure_local_algorithm_inputs()
-    geography = local_data["geography"]
-    neighbors = local_data["neighbors"]
-    commuting_flows = local_data["commuting_flow_dict"]
-    migration_flows = local_data["migration_flow_dict"]
+def run_hma_algorithm(commuting_threshold, migration_threshold):
+    ensure_algorithm_inputs()
+
+    geography = APP_DATA["geography"]
+    neighbors = APP_DATA["neighbors"]
+    commuting_flows = APP_DATA["commuting_flow_dict"]
+    migration_flows = APP_DATA["migration_flow_dict"]
 
     commuting_regions = {lad: {lad} for lad in geography["LAD23CD"]}
-    sc_cache_commuting = {lad: self_containment({lad}, commuting_flows) for lad in commuting_regions}
+    sc_cache_commuting = {
+        lad: self_containment({lad}, commuting_flows)
+        for lad in commuting_regions
+    }
 
     iteration = 0
     max_iterations = 2000
@@ -509,7 +389,10 @@ def run_local_hma_algorithm(commuting_threshold, migration_threshold):
             failed_las.update(region_las)
 
     migration_regions = {lad: {lad} for lad in failed_las}
-    sc_cache_migration = {lad: self_containment({lad}, migration_flows) for lad in migration_regions}
+    sc_cache_migration = {
+        lad: self_containment({lad}, migration_flows)
+        for lad in migration_regions
+    }
 
     iteration = 0
     while iteration < max_iterations and migration_regions:
@@ -590,11 +473,12 @@ def run_local_hma_algorithm(commuting_threshold, migration_threshold):
                 }
             )
 
-    assignments_df = pd.DataFrame(records)
+    results_df = pd.DataFrame(records)
     summary_df = pd.DataFrame(hma_summary_rows).sort_values(
         ["HMA_Size", "HMA_Name"],
         ascending=[False, True],
     )
+
     meta = {
         "passed_regions": len(passed_regions),
         "migration_regions": len(migration_regions),
@@ -603,15 +487,7 @@ def run_local_hma_algorithm(commuting_threshold, migration_threshold):
         "migration_threshold": migration_threshold,
         "summary_df": summary_df,
     }
-    return assignments_df, meta
-
-
-def build_local_map_df(assignments_df):
-    local_data = get_local_data_context()
-    geography = local_data["geography"].merge(assignments_df, on="LAD23CD", how="left")
-    map_df = geography.dissolve(by="HMA_ID", aggfunc="first").reset_index()
-    map_df["HMA_ID"] = map_df["HMA_ID"].astype(int)
-    return map_df
+    return results_df, meta
 
 
 def build_empty_figure(message, is_dark, title):
@@ -639,10 +515,8 @@ def build_empty_figure(message, is_dark, title):
 
 
 def build_hma_map(results_df, meta, is_dark):
-    if results_df.empty:
-        return build_empty_figure("No precomputed HMA geometry found for this threshold pair", is_dark, "Housing Market Areas Map")
-
-    dissolved = results_df.copy()
+    geography = APP_DATA["geography"].merge(results_df, on="LAD23CD", how="left")
+    dissolved = geography.dissolve(by="HMA_ID", aggfunc="first").reset_index()
     dissolved["HMA_ID_str"] = dissolved["HMA_ID"].astype(int).astype(str)
 
     mapbox_style = "carto-darkmatter" if is_dark else "carto-positron"
@@ -1014,7 +888,7 @@ app.layout = html.Div(
                         html.Div(
                             id="status-message",
                             className="status-message-text",
-                            children="Ready to load precomputed HMAs. Click Run HMA algorithm.",
+                            children="Ready to generate HMAs. Click Run HMA algorithm.",
                             style={
                                 "marginBottom": "1.5rem",
                                 "padding": "0.9rem 1rem",
@@ -1251,7 +1125,7 @@ app.layout = html.Div(
     prevent_initial_call=False,
 )
 def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_threshold):
-    global current_results, current_meta, current_assignments
+    global current_results, current_meta
 
     is_dark = dark_mode_data.get("isDark", False) if dark_mode_data else False
 
@@ -1263,13 +1137,12 @@ def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_th
         triggered_prop = None
 
     if not n_clicks:
-        if DATASET_VERSION:
-            status_text = f"Ready to load precomputed HMAs from dataset version {DATASET_VERSION}. Click Run HMA algorithm."
-        else:
-            status_text = "Set HMA_DATASET_VERSION, then click Run HMA algorithm to load precomputed HMAs."
+        status_text = (
+            "Ready to generate HMAs. Click Run HMA algorithm"
+        )
         return (
-            build_empty_figure("Load a precomputed threshold pair to view the Housing Market Areas map", is_dark, "Housing Market Areas Map"),
-            build_empty_figure("Load a precomputed threshold pair to view HMA sizes.", is_dark, "Largest HMAs"),
+            build_empty_figure("Run the algorithm to view your Housing Market Areas map", is_dark, "Housing Market Areas Map"),
+            build_empty_figure("Run the algorithm to view HMA sizes.", is_dark, "Largest HMAs"),
             "--",
             "--",
             "--",
@@ -1297,14 +1170,13 @@ def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_th
         )
 
     try:
-        results_df, assignments_df, meta = load_precomputed_result(commuting_threshold, migration_threshold)
+        results_df, meta = run_hma_algorithm(commuting_threshold, migration_threshold)
         current_results = results_df.copy()
         current_meta = meta
-        current_assignments = assignments_df.copy() if assignments_df is not None else None
 
         summary_df = meta["summary_df"]
         status_text = (
-            f"Loaded precomputed results. Generated {meta['final_hmas']} HMAs at "
+            f"Algorithm complete. Generated {meta['final_hmas']} HMAs at "
             f"{commuting_threshold:.1%} commuting and {migration_threshold:.1%} migration closure."
         )
         return (
@@ -1317,38 +1189,8 @@ def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_th
             build_preview_table(summary_df),
             status_text,
         )
-    except Exception as precomputed_error:
-        if ALLOW_LOCAL_THRESHOLD_FALLBACK:
-            try:
-                assignments_df, meta = run_local_hma_algorithm(commuting_threshold, migration_threshold)
-                results_df = build_local_map_df(assignments_df)
-                current_results = results_df.copy()
-                current_meta = meta
-                current_assignments = assignments_df.copy()
-
-                summary_df = meta["summary_df"]
-                status_text = (
-                    "Precomputed results were not available for this threshold pair, so the app "
-                    f"ran the HMA algorithm locally at {commuting_threshold:.1%} commuting and "
-                    f"{migration_threshold:.1%} migration closure."
-                )
-                return (
-                    build_hma_map(results_df, meta, is_dark),
-                    build_size_chart(summary_df, is_dark),
-                    f"{meta['final_hmas']}",
-                    f"{summary_df['HMA_Size'].mean():.1f}",
-                    f"{int(summary_df['HMA_Size'].max())}",
-                    build_summary_panel(summary_df, meta),
-                    build_preview_table(summary_df),
-                    status_text,
-                )
-            except Exception as local_error:
-                message = (
-                    f"Precomputed load failed: {precomputed_error}. "
-                    f"Local fallback failed: {local_error}"
-                )
-        else:
-            message = str(precomputed_error)
+    except Exception as error:
+        message = str(error)
         return (
             build_empty_figure(message, is_dark, "Housing Market Areas Map"),
             build_empty_figure("No size summary available", is_dark, "Largest HMAs"),
@@ -1372,28 +1214,27 @@ def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_th
     prevent_initial_call=True,
 )
 def download_results(n_clicks):
-    if not n_clicks or current_assignments is None or current_meta is None:
+    if not n_clicks or current_results is None or current_meta is None:
         return None
 
-    download_df = current_assignments.copy()
-    expected_columns = [
-        "LAD23CD",
-        "LAD23NM",
-        "HMA_ID",
-        "HMA_Name",
-        "HMA_Size",
-        "Commuting_SC",
-        "Migration_SC",
-        "Stage",
-    ]
-    available_columns = [column for column in expected_columns if column in download_df.columns]
+    geography = APP_DATA["geography"][["LAD23CD", "LAD23NM"]].copy()
+    download_df = current_results.merge(geography, on="LAD23CD", how="left", suffixes=("", "_Name"))
+    if "LAD23NM_Name" in download_df.columns:
+        download_df = download_df.rename(columns={"LAD23NM_Name": "LAD23NM"})
     download_df = download_df[
-        available_columns
+        [
+            "LAD23CD",
+            "LAD23NM",
+            "HMA_ID",
+            "HMA_Name",
+            "HMA_Size",
+            "Commuting_SC",
+            "Migration_SC",
+            "Stage",
+        ]
     ].sort_values(["HMA_ID", "LAD23CD"])
-    if "Commuting_SC" in download_df.columns:
-        download_df["Commuting_SC"] = download_df["Commuting_SC"].round(3)
-    if "Migration_SC" in download_df.columns:
-        download_df["Migration_SC"] = download_df["Migration_SC"].round(3)
+    download_df["Commuting_SC"] = download_df["Commuting_SC"].round(3)
+    download_df["Migration_SC"] = download_df["Migration_SC"].round(3)
     return dcc.send_data_frame(download_df.to_csv, "housing_market_areas.csv", index=False)
 
 

@@ -86,8 +86,9 @@ body.dark-mode {
     }
     
     .metric-cards-row > div {
-        flex: 1 1 calc(33.333% - 1.5rem) !important;
-        max-width: calc(33.333% - 1.5rem) !important;
+        flex: 0 0 calc((100% - 3rem) / 3) !important;
+        max-width: calc((100% - 3rem) / 3) !important;
+        width: calc((100% - 3rem) / 3) !important;
     }
     
     /* Override for maps row - 2 columns at 50% each */
@@ -518,7 +519,7 @@ body.dark-mode .button-styling:hover {
 .main-content {
     flex: 1;
     min-height: 100vh;
-    width: 100%;
+    min-width: 0;
 }
 
 /* Responsive - mobile */
@@ -1481,6 +1482,11 @@ body.dark-mode .footer-credits {
 .full-bleed-map-row {
     margin-left: 0 !important;
     margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.full-bleed-map-row > div {
     padding-left: 0 !important;
     padding-right: 0 !important;
 }

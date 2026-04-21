@@ -37,11 +37,17 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Run locally with enviroment variable (development server)
+3. Run locally with enviroment variable (development server).
 
-Open http://127.0.0.1:8022 in your browser.
+Before the first local run in a new shell, authenticate with AWS SSO
 
-Before the first local run in a new shell, authenticate with AWS SSO:
+```bash
+python
+export AWS_PROFILE= XXX AWS_REGION= XXX HMA_PRECOMPUTED_S3_PREFIX=s3://dpa-population-projection-data/dpa-apps/housing_zones_precomputed HMA_DATASET_VERSION=2026-04-15 PORT=8050 && /opt/anaconda3/envs/env/bin/python app.py
+```
+
+Open http://127.0.0.1:8050 in your browser.
+
 
 ## Production / App Runner
 The repository contains an `apprunner.yaml` configured to run the app with Gunicorn on port `8080`.
@@ -53,7 +59,7 @@ s3://dpa-population-projection-data/dpa-apps/housing_zones_precomputed/*
 ```
 
 ## Glue Precompute Job
-Use [scripts/precompute_hmas_glue.py](scripts/precompute_hmas_glue.py) to precompute all threshold combinations in AWS Glue instead of running the HMA algorithm inside the Dash callback.
+Use [scripts/precompute_hmas_glue.py](scripts/precompute_hmas_glue.py) to precompute all threshold combinations in AWS Glue instead of running the HMA algorithm inside the Dash callback, less commute, faster and cheaper.
 
 Example arguments:
 
@@ -73,11 +79,22 @@ For a single validation run before computing all 289 threshold pairs, add:
 	--single-migration-threshold 0.550
 ```
 
-To generate the full threshold grid used by the sliders, remove both single-threshold arguments. With the default settings this computes:
+To generate the full threshold grid used by the sliders, remove both single-threshold arguments as stated above. With the default settings this computes:
 
 - commuting thresholds from `0.500` to `0.900` in steps of `0.025`
 - migration thresholds from `0.300` to `0.700` in steps of `0.025`
 - `289` total threshold combinations
+
+Data folder structure:
+
+```text
+housing_zones_precomputed/
+  dataset_version=2026-04-15/
+    commuting_threshold=0.500/
+      migration_threshold=0.300/
+      migration_threshold=0.325/
+      migration_threshold=0.350/...
+```
 
 The deployed app expects each threshold folder to contain:
 
@@ -86,6 +103,12 @@ summary.json
 hma_boundaries.geojson.gz
 assignments.csv
 ```
+
+Where:
+- `summary.json` contains the summary metrics and largest-HMA data for the app display
+- `hma_boundaries.geojson.gz` contains the geometries of the resulting HMAs
+- `assignments.csv` contains the LA-to-HMA assignments for data users to download and check
+- `assignments.parquet` more efficient storage for the app use
 
 ## Architecture Diagrams
 The diagrams below explain the deployment and runtime flow.

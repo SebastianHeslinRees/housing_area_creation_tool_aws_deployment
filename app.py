@@ -290,7 +290,7 @@ def build_hma_map(results_df, meta, is_dark):
     dissolved["HMA_ID_str"] = dissolved["HMA_ID"].astype(int).astype(str)
 
     mapbox_style = "carto-darkmatter" if is_dark else "carto-positron"
-    map_palette = CHART_DARK_COLORS * 4 if is_dark else HMA_MAP_COLORS * 4
+    map_palette = HMA_MAP_COLORS * 4
     figure = px.choropleth_mapbox(
         dissolved,
         geojson=dissolved.__geo_interface__,

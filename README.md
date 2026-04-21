@@ -88,7 +88,7 @@ assignments.csv
 ```
 
 ## Architecture Diagrams
-The diagrams below explain the deployment and runtime flow for the Housing Market Areas dashboard.
+The diagrams below explain the deployment and runtime flow.
 
 ### Detailed HMA Deployment Architecture
 
@@ -199,7 +199,7 @@ sequenceDiagram
 	W-->>U: Render HMA result for selected thresholds
 ```
 
-For a standalone export-friendly version, open `architecture_diagrams.html` locally in a browser or VS Code preview and print to PDF or take a screenshot.
+For a standalone export-friendly version, open `architecture_diagrams.html`, can print to PDF or take a screenshot.
 
 ## Troubleshooting
 - If the app loads but the algorithm cannot run, the commuting and migration flow CSVs are missing or do not contain the expected columns.

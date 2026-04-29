@@ -667,129 +667,133 @@ app.layout = html.Div(
                                 "color": COLORS["text"],
                             },
                         ),
-                        dbc.Row(
+                        html.Div(
                             [
-                                dbc.Col(metric_card("total-title", "Total HMAs", "metric-total-hmas", "Areas produced by the current run", "metric-value-primary", "metric-border-secondary"), xs=12, sm=12, md=3, lg=3),
-                                dbc.Col(metric_card("mean-title", "Mean HMA Size", "metric-mean-size", "Average local authorities per HMA", "metric-value-accent", "metric-border-accent"), xs=12, sm=12, md=3, lg=3),
-                                dbc.Col(metric_card("largest-title", "Largest HMA", "metric-largest-size", "Largest region in local authorities", "metric-value-warning", "metric-border-warning"), xs=12, sm=12, md=3, lg=3),
-                            ],
-                            className="mb-4 g-3 metric-cards-row",
-                        ),
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            [
-                                                dcc.Graph(id="hma-map", figure=build_empty_figure("Run the algorithm", False, "Housing Market Areas Map"), style={"height": "72vh", "minHeight": "680px"}),
-                                                html.Div(
+                                dbc.Row(
+                                    [
+                                        dbc.Col(metric_card("total-title", "Total HMAs", "metric-total-hmas", "Areas produced by the current run", "metric-value-primary", "metric-border-secondary"), xs=12, sm=12, md=3, lg=3),
+                                        dbc.Col(metric_card("mean-title", "Mean HMA Size", "metric-mean-size", "Average local authorities per HMA", "metric-value-accent", "metric-border-accent"), xs=12, sm=12, md=3, lg=3),
+                                        dbc.Col(metric_card("largest-title", "Largest HMA", "metric-largest-size", "Largest region in local authorities", "metric-value-warning", "metric-border-warning"), xs=12, sm=12, md=3, lg=3),
+                                    ],
+                                    className="mb-4 g-3 metric-cards-row",
+                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Card(
+                                                dbc.CardBody(
                                                     [
-                                                        html.Button(
+                                                        dcc.Graph(id="hma-map", figure=build_empty_figure("Run the algorithm", False, "Housing Market Areas Map"), style={"height": "72vh", "minHeight": "680px"}),
+                                                        html.Div(
                                                             [
-                                                                html.Span("i", style={"marginRight": "8px", "fontWeight": 700}),
-                                                                "View description",
+                                                                html.Button(
+                                                                    [
+                                                                        html.Span("i", style={"marginRight": "8px", "fontWeight": 700}),
+                                                                        "View description",
+                                                                    ],
+                                                                    id="hma-map-desc-button",
+                                                                    className="description-button",
+                                                                ),
                                                             ],
-                                                            id="hma-map-desc-button",
-                                                            className="description-button",
+                                                            className="button-group-bottom",
                                                         ),
                                                     ],
-                                                    className="button-group-bottom",
+                                                    style={"padding": 0},
                                                 ),
-                                            ],
-                                            style={"padding": 0},
+                                                className="graph-container full-width-map-card",
+                                            ),
+                                            xs=12,
+                                            sm=12,
+                                            md=12,
+                                            lg=12,
                                         ),
-                                        className="graph-container full-width-map-card",
-                                    ),
-                                    xs=12,
-                                    sm=12,
-                                    md=12,
-                                    lg=12,
+                                    ],
+                                    className="mb-4 g-3 full-bleed-map-row",
                                 ),
-                            ],
-                            className="mb-4 g-3 full-bleed-map-row",
-                        ),
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            [
-                                                dcc.Graph(id="hma-size-chart", figure=build_empty_figure("Run the algorithm to view HMA sizes.", False, "Largest HMAs"), style={"height": "460px"}),
-                                                html.Div(
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Card(
+                                                dbc.CardBody(
                                                     [
-                                                        html.Button(
+                                                        dcc.Graph(id="hma-size-chart", figure=build_empty_figure("Run the algorithm to view HMA sizes.", False, "Largest HMAs"), style={"height": "460px"}),
+                                                        html.Div(
                                                             [
-                                                                html.Span("i", style={"marginRight": "8px", "fontWeight": 700}),
-                                                                "View description",
+                                                                html.Button(
+                                                                    [
+                                                                        html.Span("i", style={"marginRight": "8px", "fontWeight": 700}),
+                                                                        "View description",
+                                                                    ],
+                                                                    id="hma-size-chart-desc-button",
+                                                                    className="description-button",
+                                                                ),
                                                             ],
-                                                            id="hma-size-chart-desc-button",
-                                                            className="description-button",
+                                                            className="button-group-bottom",
                                                         ),
                                                     ],
-                                                    className="button-group-bottom",
+                                                    style={"padding": 0},
                                                 ),
-                                            ],
-                                            style={"padding": 0},
+                                                className="graph-container full-width-chart-card",
+                                            ),
+                                            xs=12,
+                                            sm=12,
+                                            md=12,
+                                            lg=12,
                                         ),
-                                        className="graph-container full-width-chart-card",
-                                    ),
-                                    xs=12,
-                                    sm=12,
-                                    md=12,
-                                    lg=12,
+                                    ],
+                                    className="mb-4 full-bleed-chart-row",
+                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Card(
+                                                dbc.CardBody(html.Div(id="stats-output", children=build_summary_panel(pd.DataFrame(), {}))),
+                                                className="graph-container",
+                                            ),
+                                             xs=12,
+                                             sm=12,
+                                             md=4,
+                                             lg=4,
+                                        ), 
+                                        dbc.Col(
+                                            dbc.Card(
+                                                dbc.CardBody(
+                                                    [
+                                                        html.H4(
+                                                            "Preview of Generated HMAs",
+                                                            style={
+                                                                "marginBottom": "1rem",
+                                                                "paddingLeft": "0.75rem",
+                                                                "fontFamily": FONT_FAMILY,
+                                                                "fontWeight": 700,
+                                                            },
+                                                        ),
+                                                        html.Div(
+                                                            id="results-preview",
+                                                            children=build_preview_table(pd.DataFrame()),
+                                                            style={
+                                                                "backgroundColor": "rgba(30, 58, 138, 0.05)",
+                                                                "padding": "0.25rem 1rem",
+                                                                "width": "calc(100%)",
+                                                                "borderRadius": "8px",
+                                                                "fontFamily": FONT_FAMILY,
+                                                            },
+                                                        ),
+                                                    ]
+                                                ),
+                                                className="graph-container preview-results-card",
+                                            ),
+                                             xs=12,
+                                             sm=12,
+                                             md=8,
+                                             lg=8,
+                                        ),
+                                    ],
+                                    className="mb-4 g-3 stats-preview-row",
                                 ),
                             ],
-                            className="mb-4 full-bleed-chart-row",
-                        ),
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    dbc.Card(
-                                        dbc.CardBody(html.Div(id="stats-output", children=build_summary_panel(pd.DataFrame(), {}))),
-                                        className="graph-container",
-                                    ),
-                                     xs=12,
-                                     sm=12,
-                                     md=4,
-                                     lg=4,
-                                ), 
-                                dbc.Col(
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            [
-                                                html.H4(
-                                                    "Preview of Generated HMAs",
-                                                    style={
-                                                        "marginBottom": "1rem",
-                                                        "paddingLeft": "0.75rem",
-                                                        "fontFamily": FONT_FAMILY,
-                                                        "fontWeight": 700,
-                                                    },
-                                                ),
-                                                html.Div(
-                                                    id="results-preview",
-                                                    children=build_preview_table(pd.DataFrame()),
-                                                    style={
-                                                        "backgroundColor": "rgba(30, 58, 138, 0.05)",
-                                                        "padding": "0.25rem 1rem",
-                                                        "width": "calc(100%)",
-                                                        "borderRadius": "8px",
-                                                        "fontFamily": FONT_FAMILY,
-                                                    },
-                                                ),
-                                            ]
-                                        ),
-                                        className="graph-container preview-results-card",
-                                    ),
-                                     xs=12,
-                                     sm=12,
-                                     md=8,
-                                     lg=8,
-                                ),
-                            ],
-                            className="mb-4 g-3 stats-preview-row",
-                            
-
+                            id="dashboard-results-shell",
+                            className="dashboard-results-shell",
                         ),
                     ],
                     fluid=True,
@@ -892,6 +896,10 @@ app.layout = html.Div(
     Input("dark-mode-state", "data"),
     State("commuting-slider", "value"),
     State("migration-slider", "value"),
+    running=[
+        (Output("run-button", "children"), "Loading HMAs...", "Run HMA algorithm"),
+        (Output("run-button", "disabled"), True, False),
+    ],
     prevent_initial_call=False,
 )
 def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_threshold):

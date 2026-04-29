@@ -741,6 +741,10 @@ body.dark-mode .dashboard-heading {
     line-height: 28px;
 }
 
+.dashboard-results-shell {
+    position: relative;
+}
+
 body.dark-mode .status-message-text {
     color: var(--color-dark-text);
 }

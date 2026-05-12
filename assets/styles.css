@@ -222,6 +222,11 @@ body.dark-mode {
     margin: 0;
 }
 
+/* Nudge first controls block down slightly below header */
+.sidebar > div:first-of-type {
+    padding-top: 8px;
+}
+
 .sidebar-close-btn {
     background: transparent;
     border: none;
@@ -537,7 +542,8 @@ body.dark-mode .button-styling:hover {
     }
     
     .sidebar {
-        width: 280px;
+        width: 100%;
+        box-sizing: border-box;
         transform: translateX(-100%);
     }
     

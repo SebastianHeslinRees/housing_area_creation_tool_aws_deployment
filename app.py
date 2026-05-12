@@ -1,3 +1,4 @@
+print("[EARLY LOG] app.py starting up...")
 """Housing Market Areas dashboard entrypoint.
 
 This app keeps the existing dashboard shell and styling while replacing the
@@ -8,6 +9,7 @@ present in the workspace.
 """
 
 import os
+import logging
 import gzip
 import json
 from io import StringIO
@@ -22,6 +24,8 @@ import geopandas as gpd
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 PORT = int(os.environ.get("PORT", 8012))
@@ -490,7 +494,7 @@ app.index_string = """
     <head>
         {%metas%}
         <title>{%title%}</title>
-        <link rel="icon" href="https://dev.ldn-gis.co.uk/sector-explorer/favicon.ico">
+        <link rel="icon" type="image/png" sizes="32x32" href="https://www.london.gov.uk/themes/custom/gla_lgov/dist/img/favicons/favicon-32x32.png">
         {%css%}
     </head>
     <body>
@@ -552,6 +556,7 @@ app.layout = html.Div(
         dcc.Store(id="dark-mode-state", data={"isDark": False}),
         dcc.Store(id="sidebar-collapsed", data=False),
         html.Div(id="card-animation-target", style={"display": "none"}),
+
         html.Button([html.Span("☰", className="hamburger-icon")], id="sidebar-toggle", className="sidebar-toggle-btn"),
         html.Div(
             [
@@ -893,58 +898,35 @@ app.layout = html.Div(
         Output("status-message", "children"),
     ],
     Input("run-button", "n_clicks"),
-    Input("dark-mode-state", "data"),
     State("commuting-slider", "value"),
     State("migration-slider", "value"),
+    State("dark-mode-state", "data"),
     running=[
         (Output("run-button", "children"), "Loading HMAs...", "Run HMA algorithm"),
         (Output("run-button", "disabled"), True, False),
     ],
     prevent_initial_call=False,
 )
-def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_threshold):
+def update_dashboard(n_clicks, commuting_threshold, migration_threshold, dark_mode_data):
     global current_results, current_meta, current_assignments
 
     is_dark = dark_mode_data.get("isDark", False) if dark_mode_data else False
-
-    triggered_prop = None
-    try:
-        if dash.callback_context.triggered:
-            triggered_prop = dash.callback_context.triggered[0]["prop_id"]
-    except Exception:
-        triggered_prop = None
 
     if not n_clicks:
         if DATASET_VERSION:
             status_text = f"Ready to load precomputed HMAs from dataset version {DATASET_VERSION}. Click Run HMA algorithm."
         else:
             status_text = "Set HMA_DATASET_VERSION, then click Run HMA algorithm to load precomputed HMAs."
+        empty_map = build_empty_figure("Load a precomputed threshold pair to view the Housing Market Areas map", is_dark, "Housing Market Areas Map")
+        empty_chart = build_empty_figure("Load a precomputed threshold pair to view HMA sizes.", is_dark, "Largest HMAs")
         return (
-            build_empty_figure("Load a precomputed threshold pair to view the Housing Market Areas map", is_dark, "Housing Market Areas Map"),
-            build_empty_figure("Load a precomputed threshold pair to view HMA sizes.", is_dark, "Largest HMAs"),
+            empty_map,
+            empty_chart,
             "--",
             "--",
             "--",
             build_summary_panel(pd.DataFrame(), {}),
             build_preview_table(pd.DataFrame()),
-            status_text,
-        )
-
-    if triggered_prop == "dark-mode-state.data" and current_results is not None and current_meta is not None:
-        summary_df = current_meta["summary_df"]
-        status_text = (
-            f"Algorithm complete. Generated {current_meta['final_hmas']} HMAs at "
-            f"{current_meta['commuting_threshold']:.1%} commuting and "
-            f"{current_meta['migration_threshold']:.1%} migration closure."
-        )
-        return (
-            build_hma_map(current_results, current_meta, is_dark),
-            build_size_chart(summary_df, is_dark),
-            f"{current_meta['final_hmas']}",
-            f"{summary_df['HMA_Size'].mean():.1f}",
-            f"{int(summary_df['HMA_Size'].max())}",
-            build_summary_panel(summary_df, current_meta),
-            build_preview_table(summary_df),
             status_text,
         )
 
@@ -959,9 +941,11 @@ def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_th
             f"Loaded precomputed results. Generated {meta['final_hmas']} HMAs at "
             f"{commuting_threshold:.1%} commuting and {migration_threshold:.1%} migration closure."
         )
+        map_fig = build_hma_map(results_df, meta, is_dark)
+        chart_fig = build_size_chart(summary_df, is_dark)
         return (
-            build_hma_map(results_df, meta, is_dark),
-            build_size_chart(summary_df, is_dark),
+            map_fig,
+            chart_fig,
             f"{meta['final_hmas']}",
             f"{summary_df['HMA_Size'].mean():.1f}",
             f"{int(summary_df['HMA_Size'].max())}",
@@ -971,9 +955,11 @@ def update_dashboard(n_clicks, dark_mode_data, commuting_threshold, migration_th
         )
     except Exception as error:
         message = str(error)
+        empty_map = build_empty_figure(message, is_dark, "Housing Market Areas Map")
+        empty_chart = build_empty_figure("No size summary available", is_dark, "Largest HMAs")
         return (
-            build_empty_figure(message, is_dark, "Housing Market Areas Map"),
-            build_empty_figure("No size summary available", is_dark, "Largest HMAs"),
+            empty_map,
+            empty_chart,
             "--",
             "--",
             "--",
@@ -1039,6 +1025,83 @@ def toggle_hma_size_chart_modal(n_clicks, is_open):
     if n_clicks:
         return not is_open
     return is_open
+
+
+app.clientside_callback(
+    """
+    function(darkModeData, currentFigure) {
+        if (!currentFigure || !currentFigure.data) {
+            return window.dash_clientside.no_update;
+        }
+
+        const isDark = darkModeData && darkModeData.isDark;
+        const figure = JSON.parse(JSON.stringify(currentFigure));
+        const background = isDark ? 'rgb(14, 19, 22)' : '#ffffff';
+        const titleColor = isDark ? '#eeeeee' : 'rgb(53, 61, 67)';
+        const markerLineColor = isDark ? '#8b9cf6' : 'rgba(102, 126, 234, 0.65)';
+
+        figure.layout = figure.layout || {};
+        figure.layout.paper_bgcolor = background;
+        figure.layout.plot_bgcolor = background;
+        figure.layout.title = figure.layout.title || {};
+        figure.layout.title.font = figure.layout.title.font || {};
+        figure.layout.title.font.color = titleColor;
+
+        // Explicitly flip basemap style so dark mode is visually obvious.
+        figure.layout.mapbox = figure.layout.mapbox || {};
+        figure.layout.mapbox.style = isDark ? 'carto-darkmatter' : 'carto-positron';
+
+        if (Array.isArray(figure.data)) {
+            figure.data = figure.data.map((trace) => {
+                const updatedTrace = { ...trace };
+                const marker = { ...(updatedTrace.marker || {}) };
+                marker.line = { ...(marker.line || {}), color: markerLineColor };
+                updatedTrace.marker = marker;
+                return updatedTrace;
+            });
+        }
+
+        return figure;
+    }
+    """,
+    Output("hma-map", "figure", allow_duplicate=True),
+    Input("dark-mode-state", "data"),
+    State("hma-map", "figure"),
+    prevent_initial_call=True,
+)
+
+
+app.clientside_callback(
+    """
+    function(darkModeData, currentFigure) {
+        if (!currentFigure || !currentFigure.layout) {
+            return window.dash_clientside.no_update;
+        }
+
+        const isDark = darkModeData && darkModeData.isDark;
+        const figure = JSON.parse(JSON.stringify(currentFigure));
+        const background = isDark ? 'rgb(14, 19, 22)' : '#ffffff';
+        const textColor = isDark ? '#eeeeee' : 'rgb(53, 61, 67)';
+        const gridColor = isDark ? 'rgba(255,255,255,0.08)' : '#e5e5e5';
+
+        figure.layout = figure.layout || {};
+        figure.layout.paper_bgcolor = background;
+        figure.layout.plot_bgcolor = background;
+        figure.layout.font = { ...(figure.layout.font || {}), color: textColor };
+        figure.layout.xaxis = { ...(figure.layout.xaxis || {}), gridcolor: gridColor };
+        figure.layout.legend = {
+            ...(figure.layout.legend || {}),
+            bgcolor: isDark ? 'rgba(14, 19, 22, 0)' : 'rgba(255, 255, 255, 0)'
+        };
+
+        return figure;
+    }
+    """,
+    Output("hma-size-chart", "figure", allow_duplicate=True),
+    Input("dark-mode-state", "data"),
+    State("hma-size-chart", "figure"),
+    prevent_initial_call=True,
+)
 
 
 app.clientside_callback(
